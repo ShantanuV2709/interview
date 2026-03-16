@@ -1,0 +1,286 @@
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1000 (OK); then sent 1000 (OK)
+[LOG]   [DG PROXY] Session ended
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you have u...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you manage...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | How do you ensure your HTML5 a...
+[LOG] New connection established
+[LOG] Action: ask | Could you describe your proces...
+[LOG] New connection established
+[LOG] Action: ask | Tell us about a time when you ...
+[LOG] New connection established
+[LOG] Action: ask | Describe a situation where you...
+[LOG] New connection established
+[LOG] Action: ask | Why are you interested in buil...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you handle...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | Describe your experience using...
+[LOG] New connection established
+[LOG] Action: ask | Tell me about a time when you ...
+[LOG] New connection established
+[LOG] Action: ask | How do you prioritize your tas...
+[LOG] New connection established
+[LOG] Action: ask | What aspects of our company cu...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you would ...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | What is your approach to handl...
+[LOG] New connection established
+[LOG] Action: ask | Describe a time when you faced...
+[LOG] New connection established
+[LOG] Action: ask | Can you share an experience wh...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1001 (going away); then sent 1001 (going away)
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you ensure...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | What are some of the ES6+ feat...
+[LOG] New connection established
+[LOG] Action: ask | Describe a challenging project...
+[LOG] New connection established
+[LOG] Action: ask | Can you share an experience wh...
+[LOG] New connection established
+[LOG] Action: ask | How do you approach constructi...
+[LOG] New connection established
+[LOG] Action: ask | What interests you most about ...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you have u...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | How would you approach impleme...
+[LOG] Sarvam TTS error: received 1001 (going away); then sent 1001 (going away)
+[LOG] Token error: received 1001 (going away); then sent 1001 (going away)
+[LOG] Handler processing error: received 1001 (going away); then sent 1001 (going away)
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] Server stopped by user
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain the key featur...
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended
+[LOG] New connection established
+[LOG] Action: ask | How do you integrate REST APIs...
+[LOG] Server stopped by user
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://localhost:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you have u...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you approach testing an...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] Server stopped by user
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://127.0.0.1:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you have u...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you ensure that the HTM...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Describe a time when you had t...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you prioritize learning...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | What aspects of our company cu...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you describe a project whe...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you describe a project whe...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you utilize REST APIs i...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Tell me about a time when you ...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you describe how you manag...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you describe how you manag...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you ensure your work al...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you would ...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you ensure that your HT...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | Describe a situation where you...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | How do you approach learning n...
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connection Error: TypeError: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'
+[LOG] New connection established
+[LOG] Action: ask | What interests you the most ab...
+[LOG] Server stopped by user
+[LOG] Starting server. Keys: OpenAI=SET, Sarvam=SET, Deepgram=SET
+[LOG] WebSocket logic server running on ws://127.0.0.1:3002
+[LOG] New connection established
+[LOG] Action: stt | Starting Deepgram Proxy
+[LOG] Connecting to Deepgram: wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000
+[LOG]   [DG PROXY] Connected to Deepgram success
+[LOG] New connection established
+[LOG] Action: ask | Can you explain how you would ...
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Token error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG] Streaming error: cannot access local variable 'buffer' where it is not associated with a value
+[LOG]   [DG PROXY] Deepgram -> Frontend Error: received 1005 (no status received [internal]); then sent 1005 (no status received [internal])
+[LOG]   [DG PROXY] Session ended

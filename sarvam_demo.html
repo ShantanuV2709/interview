@@ -1,0 +1,3294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sarvam Interview Demo — Cost Validator</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ── Reset & Root ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0c0e14;
+            --surface: #13161f;
+            --surface2: #1c2030;
+            --surface3: #242840;
+            --border: #2e3350;
+            --border2: #3d4466;
+            --teal: #00d4aa;
+            --teal-d: #009e7e;
+            --teal-dim: rgba(0, 212, 170, 0.1);
+            --amber: #f5a623;
+            --amber-dim: rgba(245, 166, 35, 0.1);
+            --rose: #f05d7a;
+            --rose-dim: rgba(240, 93, 122, 0.1);
+            --blue: #4d7fff;
+            --blue-dim: rgba(77, 127, 255, 0.1);
+            --text: #e2e5f0;
+            --muted: #7a82a0;
+            --faint: #3a4060;
+            --mono: 'JetBrains Mono', monospace;
+            --serif: 'Instrument Serif', serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Scanline texture */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.008) 2px, rgba(255, 255, 255, 0.008) 4px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* ── Layout ── */
+        .shell {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-mark {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .logo-dot {
+            width: 28px;
+            height: 28px;
+            background: conic-gradient(var(--teal), var(--blue), var(--amber), var(--teal));
+            border-radius: 8px;
+            animation: spin-slow 8s linear infinite;
+        }
+
+        @keyframes spin-slow {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .logo-name {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-sub {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-section {
+            padding: 16px 12px 8px;
+        }
+
+        .sidebar-label {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 0 8px;
+            margin-bottom: 6px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+            margin-bottom: 2px;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            background: var(--surface2);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .nav-item.active {
+            background: var(--teal-dim);
+            color: var(--teal);
+            border-color: rgba(0, 212, 170, 0.25);
+        }
+
+        .nav-icon {
+            font-size: 14px;
+            width: 18px;
+            text-align: center;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            font-size: 9px;
+            background: var(--teal-dim);
+            color: var(--teal);
+            border: 1px solid rgba(0, 212, 170, 0.2);
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .cost-meter {
+            margin-bottom: 10px;
+        }
+
+        .cost-meter-label {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .cost-meter-bar {
+            height: 4px;
+            background: var(--surface3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .cost-meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--teal), var(--blue));
+            border-radius: 2px;
+            transition: width 1s ease;
+        }
+
+        .session-cost {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--teal);
+            font-family: var(--mono);
+        }
+
+        .session-cost-label {
+            font-size: 9px;
+            color: var(--muted);
+        }
+
+        /* ── Main ── */
+        .main {
+            overflow: hidden;
+        }
+
+        /* ── Section ── */
+        .section {
+            display: none;
+            padding: 32px;
+            min-height: 100vh;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-header {
+            margin-bottom: 28px;
+        }
+
+        .section-eyebrow {
+            font-size: 10px;
+            color: var(--teal);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-eyebrow::before {
+            content: '';
+            display: block;
+            width: 20px;
+            height: 1px;
+            background: var(--teal);
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: 32px;
+            font-style: italic;
+            color: var(--text);
+            line-height: 1.1;
+            margin-bottom: 10px;
+        }
+
+        .section-desc {
+            font-size: 12px;
+            color: var(--muted);
+            max-width: 600px;
+            line-height: 1.7;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title .pill {
+            font-size: 9px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            background: var(--teal-dim);
+            color: var(--teal);
+            border: 1px solid rgba(0, 212, 170, 0.2);
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* ── Form elements ── */
+        label {
+            display: block;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+            border-radius: 8px;
+            padding: 10px 12px;
+            outline: none;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus,
+        input:focus,
+        select:focus {
+            border-color: var(--teal);
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        select option {
+            background: var(--surface2);
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-teal {
+            background: var(--teal);
+            color: #000;
+        }
+
+        .btn-teal:hover {
+            background: var(--teal-d);
+            transform: translateY(-1px);
+        }
+
+        .btn-teal:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-ghost {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        .btn-amber {
+            background: var(--amber-dim);
+            color: var(--amber);
+            border: 1px solid rgba(245, 166, 35, 0.3);
+        }
+
+        .btn-rose {
+            background: var(--rose-dim);
+            color: var(--rose);
+            border: 1px solid rgba(240, 93, 122, 0.3);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 10px;
+        }
+
+        /* ── Tag / Badge ── */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .tag-teal {
+            background: var(--teal-dim);
+            color: var(--teal);
+            border: 1px solid rgba(0, 212, 170, 0.2);
+        }
+
+        .tag-amber {
+            background: var(--amber-dim);
+            color: var(--amber);
+            border: 1px solid rgba(245, 166, 35, 0.2);
+        }
+
+        .tag-rose {
+            background: var(--rose-dim);
+            color: var(--rose);
+            border: 1px solid rgba(240, 93, 122, 0.2);
+        }
+
+        .tag-blue {
+            background: var(--blue-dim);
+            color: var(--blue);
+            border: 1px solid rgba(77, 127, 255, 0.2);
+        }
+
+        /* ── Code block ── */
+        .code-block {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 11px;
+            line-height: 1.7;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block .kw {
+            color: var(--blue);
+        }
+
+        .code-block .str {
+            color: var(--teal);
+        }
+
+        .code-block .fn {
+            color: var(--amber);
+        }
+
+        .code-block .cm {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .code-lang {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Prompt block ── */
+        .prompt-block {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--teal);
+            border-radius: 0 8px 8px 0;
+            padding: 16px 18px;
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--text);
+            white-space: pre-wrap;
+            position: relative;
+        }
+
+        .prompt-block .var {
+            color: var(--amber);
+            font-weight: 700;
+        }
+
+        .prompt-block .instruction {
+            color: var(--teal);
+        }
+
+        .prompt-copy {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 9px;
+            background: var(--surface3);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-copy:hover {
+            color: var(--teal);
+            border-color: var(--teal);
+        }
+
+        /* ── Cost ticker ── */
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            margin-bottom: 6px;
+        }
+
+        .cost-label {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .cost-value {
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--mono);
+            color: var(--teal);
+        }
+
+        .cost-value.retell {
+            color: var(--rose);
+        }
+
+        .cost-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 10px 0;
+        }
+
+        .cost-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid;
+            margin-top: 6px;
+        }
+
+        .cost-total.new {
+            background: var(--teal-dim);
+            border-color: rgba(0, 212, 170, 0.3);
+        }
+
+        .cost-total.old {
+            background: var(--rose-dim);
+            border-color: rgba(240, 93, 122, 0.3);
+        }
+
+        .saving-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--teal-dim);
+            color: var(--teal);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        /* ── Waveform ── */
+        .waveform {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 36px;
+            padding: 0 4px;
+        }
+
+        .wave-bar {
+            width: 3px;
+            border-radius: 2px;
+            background: var(--teal);
+            height: 4px;
+            opacity: 0.3;
+            transition: height 0.1s ease;
+        }
+
+        .wave-bar.live {
+            opacity: 1;
+            animation: wave-anim 0.8s ease-in-out infinite;
+        }
+
+        @keyframes wave-anim {
+
+            0%,
+            100% {
+                height: 4px;
+            }
+
+            50% {
+                height: 28px;
+            }
+        }
+
+        /* ── Status dot ── */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--faint);
+        }
+
+        .status-dot.live {
+            background: var(--teal);
+            box-shadow: 0 0 8px var(--teal);
+            animation: blink 1.5s infinite;
+        }
+
+        .status-dot.speaking {
+            background: var(--amber);
+            box-shadow: 0 0 8px var(--amber);
+            animation: blink 0.7s infinite;
+        }
+
+        .status-dot.error {
+            background: var(--rose);
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        /* ── Pipeline diagram ── */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            overflow-x: auto;
+            padding: 4px 0;
+        }
+
+        .pipe-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            min-width: 90px;
+            padding: 10px 6px;
+        }
+
+        .pipe-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 1px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pipe-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent);
+        }
+
+        .pipe-icon.gpt {
+            background: var(--blue-dim);
+            border-color: rgba(77, 127, 255, 0.3);
+        }
+
+        .pipe-icon.tts {
+            background: var(--amber-dim);
+            border-color: rgba(245, 166, 35, 0.3);
+        }
+
+        .pipe-icon.call {
+            background: var(--teal-dim);
+            border-color: rgba(0, 212, 170, 0.3);
+        }
+
+        .pipe-icon.stt {
+            background: var(--rose-dim);
+            border-color: rgba(240, 93, 122, 0.3);
+        }
+
+        .pipe-icon.score {
+            background: var(--blue-dim);
+            border-color: rgba(77, 127, 255, 0.3);
+        }
+
+        .pipe-label {
+            font-size: 9px;
+            color: var(--muted);
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+        .pipe-model {
+            font-size: 8px;
+            padding: 1px 6px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .pipe-arrow {
+            color: var(--faint);
+            font-size: 16px;
+            padding: 0 2px;
+            margin-bottom: 24px;
+            flex-shrink: 0;
+        }
+
+        /* ── Transcript ── */
+        .transcript-area {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            min-height: 80px;
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--text);
+            position: relative;
+        }
+
+        .transcript-tag {
+            position: absolute;
+            top: -9px;
+            left: 10px;
+            background: var(--surface2);
+            padding: 0 6px;
+            font-size: 8px;
+            color: var(--amber);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .transcript-lang {
+            position: absolute;
+            top: -9px;
+            right: 10px;
+            background: var(--surface2);
+            padding: 0 6px;
+            font-size: 8px;
+            color: var(--teal);
+            letter-spacing: 1px;
+        }
+
+        /* ── Q items ── */
+        .q-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            animation: fadeUp 0.3s ease;
+        }
+
+        .q-num {
+            min-width: 22px;
+            height: 22px;
+            background: var(--blue-dim);
+            color: var(--blue);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .q-text {
+            font-size: 12px;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        /* ── Score card ── */
+        .score-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+
+        .score-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .score-bar-bg {
+            flex: 1;
+            height: 5px;
+            background: var(--surface3);
+            border-radius: 3px;
+        }
+
+        .score-bar-fill {
+            height: 5px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--teal), var(--blue));
+            transition: width 1s ease;
+        }
+
+        .score-num {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--teal);
+            font-family: var(--mono);
+        }
+
+        .overall-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(var(--teal) calc(var(--pct) * 1%), var(--surface3) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .overall-ring::before {
+            content: '';
+            position: absolute;
+            inset: 10px;
+            border-radius: 50%;
+            background: var(--surface2);
+        }
+
+        .overall-ring-val {
+            position: relative;
+            z-index: 1;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--teal);
+            font-family: var(--mono);
+        }
+
+        /* ── Metric stat ── */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: var(--mono);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            color: var(--muted);
+            background: transparent;
+            border: 1px solid transparent;
+            border-bottom: none;
+            transition: all 0.2s;
+            position: relative;
+            top: 1px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            background: var(--surface);
+            border-color: var(--border);
+            color: var(--teal);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* ── Prompt sections ── */
+        .prompt-section {
+            margin-bottom: 24px;
+        }
+
+        .prompt-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--teal);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prompt-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .api-endpoint {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--teal);
+            font-family: var(--mono);
+            margin-bottom: 6px;
+            word-break: break-all;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .api-method {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--teal-dim);
+            color: var(--teal);
+            flex-shrink: 0;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            height: 14px;
+            margin-bottom: 6px;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        .gap {
+            margin-bottom: 16px;
+        }
+
+        .flex {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .flex-end {
+            justify-content: flex-end;
+        }
+
+        .flex-between {
+            justify-content: space-between;
+        }
+
+        .text-muted {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .text-teal {
+            color: var(--teal);
+        }
+
+        .text-amber {
+            color: var(--amber);
+        }
+
+        .text-rose {
+            color: var(--rose);
+        }
+
+        .mt {
+            margin-top: 10px;
+        }
+
+        .w100 {
+            width: 100%;
+        }
+
+        .note {
+            background: var(--amber-dim);
+            border: 1px solid rgba(245, 166, 35, 0.2);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 11px;
+            color: var(--amber);
+            line-height: 1.6;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--surface);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="shell">
+
+        <!-- ── SIDEBAR ── -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-mark">
+                    <div class="logo-dot"></div>
+                    <div class="logo-name">InterviewAI</div>
+                </div>
+                <div class="logo-sub">Sarvam Demo · Cost Validator</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Demo Screens</div>
+                <a class="nav-item active" onclick="showSection('prompt')" href="#">
+                    <span class="nav-icon">📋</span> Implementation Prompt
+                    <span class="nav-badge">START</span>
+                </a>
+                <a class="nav-item" onclick="showSection('questions')" href="#">
+                    <span class="nav-icon">❓</span> 1. Question Gen
+                </a>
+                <a class="nav-item" onclick="showSection('interview')" href="#">
+                    <span class="nav-icon">🎙</span> 2. Interview + STT
+                </a>
+                <a class="nav-item" onclick="showSection('scoring')" href="#">
+                    <span class="nav-icon">📊</span> 3. Scoring
+                </a>
+                <a class="nav-item" onclick="showSection('costs')" href="#">
+                    <span class="nav-icon">💰</span> 4. Cost Meter
+                    <span class="nav-badge">KEY</span>
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">API Config</div>
+                <div style="padding: 0 8px;">
+                    <div class="field">
+                        <label>Sarvam API Key</label>
+                        <input type="password" id="sarvamKey" placeholder="sk-..." value="">
+                    </div>
+                    <div class="field">
+                        <label>OpenAI API Key</label>
+                        <input type="password" id="openaiKey" placeholder="sk-..." value="">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="cost-meter">
+                    <div class="cost-meter-label">
+                        <span>Session Cost</span>
+                        <span id="costPct">0%</span>
+                    </div>
+                    <div class="cost-meter-bar">
+                        <div class="cost-meter-fill" id="costBar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="session-cost" id="sessionCostDisplay">$0.0000</div>
+                <div class="session-cost-label">accumulated this session</div>
+            </div>
+        </aside>
+
+        <!-- ── MAIN ── -->
+        <main class="main">
+
+            <!-- ════════════════════════════════════
+     SCREEN 0 — IMPLEMENTATION PROMPT
+════════════════════════════════════ -->
+            <div id="section-prompt" class="section active">
+                <div class="section-header">
+                    <div class="section-eyebrow">Getting Started</div>
+                    <h1 class="section-title">Implementation Prompt & Architecture</h1>
+                    <p class="section-desc">Copy these prompts directly into your project. Each prompt is scoped to a
+                        specific Sarvam AI API and tuned for English-language interview use cases.</p>
+                </div>
+
+                <!-- Pipeline overview -->
+                <div class="card gap">
+                    <div class="card-title">System Pipeline <span class="pill">Full Stack</span></div>
+                    <div class="pipeline">
+                        <div class="pipe-node">
+                            <div class="pipe-icon gpt">📝</div>
+                            <div class="pipe-label">Question Gen</div>
+                            <span class="pipe-model tag tag-blue">GPT-4o</span>
+                        </div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-icon tts">🔊</div>
+                            <div class="pipe-label">TTS Playback</div>
+                            <span class="pipe-model tag tag-amber">bulbul:v2</span>
+                        </div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-icon call">📞</div>
+                            <div class="pipe-label">Live Call</div>
+                            <span class="pipe-model tag tag-teal">Vapi/Twilio</span>
+                        </div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-icon stt">👂</div>
+                            <div class="pipe-label">STT Transcribe</div>
+                            <span class="pipe-model tag tag-rose">saarika:v2.5</span>
+                        </div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-icon score">📊</div>
+                            <div class="pipe-label">Score + Report</div>
+                            <span class="pipe-model tag tag-blue">GPT-4o</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchInnerTab('tab-prompt', 'p1')">Prompt 1 — Question
+                        Gen</button>
+                    <button class="tab-btn" onclick="switchInnerTab('tab-prompt', 'p2')">Prompt 2 — TTS Config</button>
+                    <button class="tab-btn" onclick="switchInnerTab('tab-prompt', 'p3')">Prompt 3 — STT Config</button>
+                    <button class="tab-btn" onclick="switchInnerTab('tab-prompt', 'p4')">Prompt 4 — Scoring</button>
+                    <button class="tab-btn" onclick="switchInnerTab('tab-prompt', 'p5')">API Reference</button>
+                </div>
+
+                <!-- P1 — Question Gen Prompt -->
+                <div id="tab-prompt-p1" class="tab-pane active">
+                    <div class="grid2">
+                        <div>
+                            <div class="prompt-section-title">System Prompt — GPT-4o Question Generator</div>
+                            <div class="prompt-block">
+                                <button class="prompt-copy" onclick="copyPrompt('qgen-system')">Copy</button>
+                                <span class="instruction">You are an expert HR interviewer specialising in tech hiring
+                                    in India.</span>
+
+                                Your task is to generate interview questions from a job description.
+
+                                <span class="instruction">Rules:</span>
+                                - Write ALL questions in <span class="var">clear, professional English</span>
+                                - Keep language warm and conversational, not formal
+                                - Generate exactly <span class="var">{{NUM_QUESTIONS}}</span> questions
+                                - Distribute: 50% Technical, 30% Behavioural, 20% HR/Culture
+                                - Each question should be answerable in under 90 seconds verbally
+                                - Avoid compound questions (one idea per question only)
+                                - Use second person "you" in a warm, professional tone
+
+                                <span class="instruction">Output JSON only:</span>
+                                {
+                                "questions": [
+                                {
+                                "id": 1,
+                                "text": "&lt;english question&gt;",
+                                "category": "technical|behavioural|hr",
+                                "difficulty": "easy|medium|hard",
+                                "expected_duration_sec": 60
+                                }
+                                ]
+                                }
+                            </div>
+
+                            <div class="prompt-section-title" style="margin-top:16px;">User Prompt — Send JD</div>
+                            <div class="prompt-block">
+                                <button class="prompt-copy" onclick="copyPrompt('qgen-user')">Copy</button>
+                                Role: <span class="var">{{JOB_TITLE}}</span>
+                                Experience: <span class="var">{{EXP_LEVEL}}</span>
+                                Number of questions: <span class="var">{{NUM_QUESTIONS}}</span>
+
+                                Job Description:
+                                <span class="var">{{JOB_DESCRIPTION}}</span>
+
+                                <span class="instruction">Generate the questions now.</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="prompt-section-title">API Call — GPT-4o</div>
+                            <div class="code-block">
+                                <span class="code-lang">JavaScript</span>
+                                <span class="kw">const</span> <span class="fn">generateQuestions</span> = <span
+                                    class="kw">async</span> ({
+                                jobDescription, jobTitle,
+                                expLevel, numQuestions
+                                }) => {
+                                <span class="kw">const</span> res = <span class="kw">await</span> fetch(
+                                <span class="str">"https://api.openai.com/v1/chat/completions"</span>, {
+                                method: <span class="str">"POST"</span>,
+                                headers: {
+                                <span class="str">"Authorization"</span>: <span class="str">`Bearer
+                                    ${OPENAI_KEY}`</span>,
+                                <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>
+                                },
+                                body: JSON.stringify({
+                                model: <span class="str">"gpt-4o"</span>,
+                                response_format: { type: <span class="str">"json_object"</span> },
+                                messages: [
+                                { role: <span class="str">"system"</span>, content: SYSTEM_PROMPT },
+                                { role: <span class="str">"user"</span>, content:
+                                USER_PROMPT
+                                .replace(<span class="str">"{{JOB_TITLE}}"</span>, jobTitle)
+                                .replace(<span class="str">"{{EXP_LEVEL}}"</span>, expLevel)
+                                .replace(<span class="str">"{{NUM_QUESTIONS}}"</span>, numQuestions)
+                                .replace(<span class="str">"{{JOB_DESCRIPTION}}"</span>, jobDescription)
+                                }
+                                ]
+                                })
+                                });
+                                <span class="kw">const</span> data = <span class="kw">await</span> res.json();
+                                <span class="cm">// Track tokens for cost metering</span>
+                                trackCost(<span class="str">"gpt-qgen"</span>, data.usage);
+                                <span class="kw">return</span> JSON.parse(data.choices[0].message.content);
+                                };
+                            </div>
+
+                            <div class="note mt">
+                                💡 <strong>Cost tip:</strong> Cache generated questions per JD hash. Same JD = same
+                                questions, zero API cost for repeats. Store in Redis or a DB keyed by
+                                <code>SHA256(jd_text)</code>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P2 — TTS -->
+                <div id="tab-prompt-p2" class="tab-pane">
+                    <div class="grid2">
+                        <div>
+                            <div class="prompt-section-title">Sarvam TTS — bulbul:v2 Config</div>
+                            <div class="prompt-block">
+                                <button class="prompt-copy" onclick="copyPrompt('tts')">Copy</button>
+                                <span class="instruction">Recommended TTS parameters for interview calls:</span>
+
+                                model: <span class="var">bulbul:v2</span>
+                                speaker: <span class="var">anushka</span> <span class="cm"># warm, professional
+                                    female</span>
+                                <span class="cm"># alternatives: priya, neha, pooja, ishita, shreya</span>
+                                target_lang: <span class="var">en-IN</span>
+                                pace: <span class="var">0.95</span> <span class="cm"># slightly slower = clearer for
+                                    candidates</span>
+                                pitch: <span class="var">0</span> <span class="cm"># neutral pitch</span>
+                                loudness: <span class="var">1.4</span> <span class="cm"># slightly louder for phone
+                                    clarity</span>
+                                enable_preprocessing: <span class="var">true</span> <span class="cm"># handles numbers,
+                                    special chars</span>
+                                audio_format: <span class="var">mp3</span>
+                                sample_rate: <span class="var">22050</span> <span class="cm"># 22kHz sufficient for
+                                    voice calls</span>
+
+                                <span class="instruction">Opening message template (English):</span>
+                                "Hello <span class="var">{{CANDIDATE_NAME}}</span>! This is an automated
+                                interview call from <span class="var">{{COMPANY}}</span>.
+                                We will be conducting a quick screening interview
+                                for the <span class="var">{{ROLE}}</span> position today.
+                                Please answer each question clearly in your own words.
+                                Are you ready? Let's get started!"
+                            </div>
+                        </div>
+                        <div>
+                            <div class="prompt-section-title">API Call — Sarvam TTS</div>
+                            <div class="code-block">
+                                <span class="code-lang">JavaScript</span>
+                                <span class="kw">const</span> <span class="fn">speakQuestion</span> = <span
+                                    class="kw">async</span> (text) => {
+                                <span class="kw">const</span> start = Date.now();
+                                <span class="kw">const</span> chars = text.length;
+
+                                <span class="kw">const</span> res = <span class="kw">await</span> fetch(
+                                <span class="str">"https://api.sarvam.ai/text-to-speech"</span>, {
+                                method: <span class="str">"POST"</span>,
+                                headers: {
+                                <span class="str">"api-subscription-key"</span>: SARVAM_KEY,
+                                <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>
+                                },
+                                body: JSON.stringify({
+                                inputs: [text],
+                                target_language_code: <span class="str">"en-IN"</span>,
+                                speaker: <span class="str">"meera"</span>,
+                                model: <span class="str">"bulbul:v2"</span>,
+                                audio_format: <span class="str">"mp3"</span>,
+                                pace: 0.95, pitch: 0, loudness: 1.4,
+                                enable_preprocessing: <span class="kw">true</span>
+                                })
+                                });
+                                <span class="kw">const</span> { audios } = <span class="kw">await</span> res.json();
+
+                                <span class="cm">// Cost: ₹15/10K chars = $0.0000165/char</span>
+                                trackCost(<span class="str">"sarvam-tts"</span>, { chars,
+                                cost_usd: chars * 0.0000165 });
+
+                                <span class="kw">const</span> audio = <span class="kw">new</span> Audio(
+                                <span class="str">`data:audio/mp3;base64,${audios[0]}`</span>);
+                                <span class="kw">return</span> audio.play();
+                                };
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P3 — STT -->
+                <div id="tab-prompt-p3" class="tab-pane">
+                    <div class="grid2">
+                        <div>
+                            <div class="prompt-section-title">Sarvam STT — saarika:v2.5 Config</div>
+                            <div class="prompt-block">
+                                <button class="prompt-copy" onclick="copyPrompt('stt')">Copy</button>
+                                <span class="instruction">STT configuration for English (Indian accent) interview
+                                    calls:</span>
+
+                                model: <span class="var">saarika:v2.5</span>
+                                language_code: <span class="var">en-IN</span>
+                                <span class="cm"># use "en-IN" for Indian-accented English</span>
+                                <span class="cm"># saaras:v3 for auto language detection</span>
+                                audio_format: <span class="var">wav</span> <span class="cm"># wav preferred over mp3 for
+                                    STT</span>
+                                sample_rate: <span class="var">16000</span> <span class="cm"># 16kHz mono
+                                    required</span>
+
+                                <span class="instruction">WebSocket streaming (recommended for live calls):</span>
+                                wss://api.sarvam.ai/v1/realtime/stt
+                                model: saarika:v2.5
+                                language_code: en-IN
+                                interim_results: true <span class="cm"># show partial transcripts</span>
+                                vad_sensitivity: high <span class="cm"># faster turn detection</span>
+
+                                <span class="instruction">Post-processing prompt for transcript cleanup:</span>
+                                "Clean up this English interview transcript:
+                                - Fix obvious STT errors based on context
+                                - Preserve technical terms and acronyms as-is
+                                - Do NOT paraphrase, just clean up errors
+                                Transcript: <span class="var">{{RAW_TRANSCRIPT}}</span>"
+                            </div>
+                        </div>
+                        <div>
+                            <div class="prompt-section-title">API Call — Sarvam STT</div>
+                            <div class="code-block">
+                                <span class="code-lang">JavaScript</span>
+                                <span class="kw">const</span> <span class="fn">transcribeAnswer</span> = <span
+                                    class="kw">async</span> (audioBlob) => {
+                                <span class="kw">const</span> durationSec =
+                                audioBlob.size / (16000 * 2); <span class="cm">// estimate</span>
+
+                                <span class="kw">const</span> formData = <span class="kw">new</span> FormData();
+                                formData.append(<span class="str">"file"</span>, audioBlob, <span
+                                    class="str">"answer.wav"</span>);
+                                formData.append(<span class="str">"model"</span>, <span
+                                    class="str">"saarika:v2.5"</span>);
+                                formData.append(<span class="str">"language_code"</span>, <span
+                                    class="str">"en-IN"</span>);
+
+                                <span class="kw">const</span> res = <span class="kw">await</span> fetch(
+                                <span class="str">"https://api.sarvam.ai/speech-to-text"</span>, {
+                                method: <span class="str">"POST"</span>,
+                                headers: {
+                                <span class="str">"api-subscription-key"</span>: SARVAM_KEY
+                                },
+                                body: formData
+                                });
+                                <span class="kw">const</span> { transcript } = <span class="kw">await</span> res.json();
+
+                                <span class="cm">// Cost: ₹30/hr = $0.000092/sec</span>
+                                trackCost(<span class="str">"sarvam-stt"</span>, { durationSec,
+                                cost_usd: durationSec * 0.000092 });
+
+                                <span class="kw">return</span> transcript;
+                                };
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P4 — Scoring -->
+                <div id="tab-prompt-p4" class="tab-pane">
+                    <div class="grid2">
+                        <div>
+                            <div class="prompt-section-title">Scoring System Prompt — GPT-4o</div>
+                            <div class="prompt-block" style="font-size:11px;">
+                                <button class="prompt-copy" onclick="copyPrompt('score')">Copy</button>
+                                <span class="instruction">You are a senior HR evaluator for a tech company in India.
+                                    Evaluate interview answers fairly and objectively.</span>
+
+                                Role being evaluated: <span class="var">{{JOB_TITLE}}</span>
+                                Experience expected: <span class="var">{{EXP_LEVEL}}</span>
+
+                                <span class="instruction">Score each answer on these dimensions (1-10 each):</span>
+                                1. Relevance — Does the answer address the question?
+                                2. Depth — Technical correctness and specificity
+                                3. Communication — Clarity, fluency, and articulation in English
+                                4. Impression — Confidence, self-awareness, growth mindset
+
+                                <span class="instruction">Then compute:</span>
+                                - Weighted score: Relevance 30%, Depth 35%, Comm 20%, Impression 15%
+                                - Overall out of 10 (weighted average)
+                                - Recommendation: "shortlist" (≥7.5) | "hold" (5.5–7.4) | "reject" (&lt;5.5)
+
+                                <span class="instruction">Output ONLY valid JSON:</span>
+                                {
+                                "scores": [
+                                {
+                                "question_id": 1,
+                                "relevance": 8, "depth": 7, "communication": 9, "impression": 8,
+                                "weighted_score": 7.85,
+                                "feedback": "&lt;2 sentence constructive note&gt;"
+                                }
+                                ],
+                                "overall_score": 7.9,
+                                "summary": "&lt;3-4 sentence candidate summary&gt;",
+                                "recommendation": "shortlist",
+                                "strengths": ["&lt;point&gt;"],
+                                "areas_to_probe": ["&lt;point&gt;"]
+                                }
+                            </div>
+                        </div>
+                        <div>
+                            <div class="prompt-section-title">User Prompt — Send Transcripts</div>
+                            <div class="prompt-block" style="font-size:11px;">
+                                <button class="prompt-copy" onclick="copyPrompt('score-user')">Copy</button>
+                                <span class="instruction">Interview transcript for evaluation:</span>
+
+                                Candidate: <span class="var">{{CANDIDATE_NAME}}</span>
+
+                                <span class="var">{{QUESTIONS_AND_ANSWERS}}</span>
+
+                                <span class="cm">// Format each Q&A as:
+                                    // Q1 [Technical]: &lt;question text&gt;
+                                    // A1: &lt;Deepgram STT transcript&gt;
+                                    // ---</span>
+
+                                <span class="instruction">Please evaluate all answers now.</span>
+                            </div>
+
+                            <div class="note mt">
+                                💡 <strong>Cost tip:</strong> Use <code>gpt-4o-mini</code> for scoring if volume is high
+                                — saves ~95% on this step with ~5% quality drop. Switch to <code>gpt-4o</code> only for
+                                shortlisted candidates' final review.
+                            </div>
+
+                            <div class="api-endpoint mt">
+                                <span class="api-method">POST</span>
+                                https://api.openai.com/v1/chat/completions
+                            </div>
+                            <div class="api-endpoint">
+                                <span class="api-method">POST</span>
+                                https://api.sarvam.ai/speech-to-text
+                            </div>
+                            <div class="api-endpoint">
+                                <span class="api-method">POST</span>
+                                https://api.sarvam.ai/text-to-speech
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- P5 — API Reference -->
+                <div id="tab-prompt-p5" class="tab-pane">
+                    <div class="grid2">
+                        <div class="card">
+                            <div class="card-title">Sarvam AI Endpoints</div>
+                            <div class="api-endpoint"><span class="api-method">POST</span>
+                                https://api.sarvam.ai/speech-to-text</div>
+                            <div style="font-size:11px; color:var(--muted); margin: 4px 0 10px 0;">Auth:
+                                api-subscription-key header · FormData: file, model, language_code</div>
+                            <div class="api-endpoint"><span class="api-method">POST</span>
+                                https://api.sarvam.ai/text-to-speech</div>
+                            <div style="font-size:11px; color:var(--muted); margin: 4px 0 10px 0;">Auth:
+                                api-subscription-key header · JSON: inputs[], model, speaker, target_language_code</div>
+                            <div class="api-endpoint"><span class="api-method">POST</span>
+                                https://api.sarvam.ai/v1/chat/completions</div>
+                            <div style="font-size:11px; color:var(--muted); margin: 4px 0 10px 0;">Auth:
+                                api-subscription-key header · JSON: model "sarvam-m", messages[]</div>
+                            <div class="api-endpoint"><span class="api-method">WSS</span>
+                                wss://api.sarvam.ai/v1/realtime/stt</div>
+                            <div style="font-size:11px; color:var(--muted); margin: 4px 0;">WebSocket streaming STT —
+                                saarika:v2.5 (English)</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">Environment Variables</div>
+                            <div class="code-block" style="font-size:11px;">
+                                <span class="cm"># .env</span>
+                                <span class="kw">SARVAM_API_KEY</span>=<span class="str">your_sarvam_key</span>
+                                <span class="kw">OPENAI_API_KEY</span>=<span class="str">your_openai_key</span>
+
+                                <span class="cm"># Models</span>
+                                <span class="kw">SARVAM_STT_MODEL</span>=<span class="str">saarika:v2.5</span>
+                                <span class="kw">SARVAM_TTS_MODEL</span>=<span class="str">bulbul:v2</span>
+                                <span class="kw">SARVAM_TTS_SPEAKER</span>=<span class="str">anushka</span>
+                                <span class="kw">SARVAM_LANGUAGE</span>=<span class="str">en-IN</span>
+
+                                <span class="kw">GPT_QGEN_MODEL</span>=<span class="str">gpt-4o</span>
+                                <span class="kw">GPT_SCORE_MODEL</span>=<span class="str">gpt-4o-mini</span>
+
+                                <span class="cm"># Telephony</span>
+                                <span class="kw">TWILIO_ACCOUNT_SID</span>=<span class="str">ACxxx</span>
+                                <span class="kw">TWILIO_AUTH_TOKEN</span>=<span class="str">xxx</span>
+                                <span class="kw">TWILIO_PHONE_NUMBER</span>=<span class="str">+1xxxxxxxxxx</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ════════════════════════════════════
+     SCREEN 1 — QUESTION GENERATION
+════════════════════════════════════ -->
+            <div id="section-questions" class="section">
+                <div class="section-header">
+                    <div class="section-eyebrow">Demo Screen 1</div>
+                    <h1 class="section-title">Question Generation — GPT-4o</h1>
+                    <p class="section-desc">Simulates the GPT-4o API call. Tracks token usage and cost per generation.
+                        In production this calls <code>POST /v1/chat/completions</code>.</p>
+                </div>
+
+                <div class="grid2">
+                    <div>
+                        <div class="card">
+                            <div class="card-title">Job Description Input</div>
+                            <div class="field">
+                                <label>Job Title</label>
+                                <input type="text" id="jdTitle" value="Frontend Developer"
+                                    placeholder="e.g. Backend Engineer">
+                            </div>
+                            <div class="field">
+                                <label>Experience Level</label>
+                                <select id="jdExp">
+                                    <option>Fresher (0-1 yr)</option>
+                                    <option selected>Junior (1-3 yrs)</option>
+                                    <option>Mid-level (3-6 yrs)</option>
+                                    <option>Senior (6+ yrs)</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Job Description</label>
+                                <textarea id="jdText"
+                                    rows="6">We are hiring a Frontend Developer with 1-3 years experience in React.js. Must know JavaScript ES6+, HTML5, CSS3, and REST APIs. Experience with Git is mandatory. Basic Node.js knowledge is a plus. Role involves building UI for our SaaS product with 50,000+ users in India.</textarea>
+                            </div>
+                            <div class="field">
+                                <label>Number of Questions</label>
+                                <input type="number" id="numQ" value="6" min="3" max="12">
+                            </div>
+                            <div class="flex gap">
+                                <button class="btn btn-teal" id="genQBtn" onclick="demoGenerateQuestions()">
+                                    <span id="genQBtnText">⚡ Generate Questions</span>
+                                </button>
+                                <span class="text-muted" id="genQStatus">ready</span>
+                            </div>
+                        </div>
+
+                        <div class="card mt" id="genCostCard" style="display:none;">
+                            <div class="card-title">API Cost — This Call <span class="pill">GPT-4o</span></div>
+                            <div class="cost-row"><span class="cost-label">Input tokens</span><span class="cost-value"
+                                    id="costInputTok">—</span></div>
+                            <div class="cost-row"><span class="cost-label">Output tokens</span><span class="cost-value"
+                                    id="costOutputTok">—</span></div>
+                            <div class="cost-row"><span class="cost-label">Input cost ($2.50/1M)</span><span
+                                    class="cost-value" id="costInput">—</span></div>
+                            <div class="cost-row"><span class="cost-label">Output cost ($10.00/1M)</span><span
+                                    class="cost-value" id="costOutput">—</span></div>
+                            <div class="cost-total new">
+                                <span style="font-weight:700; font-size:12px;">Total this call</span>
+                                <span class="cost-value" id="costQGenTotal">—</span>
+                            </div>
+                            <div class="cost-total old" style="margin-top:6px;">
+                                <span style="font-weight:700; font-size:12px; color:var(--rose);">Retell
+                                    equivalent</span>
+                                <span class="cost-value retell" id="costRetellQGen">~$0.09 (bundled)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Generated Questions <span class="pill" id="qGenCount">0 questions</span>
+                        </div>
+                        <div id="qGenList">
+                            <div class="text-muted" style="text-align:center; padding:40px 0;">
+                                Generate questions to see them here →
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ════════════════════════════════════
+     SCREEN 2 — INTERVIEW + STT
+════════════════════════════════════ -->
+            <div id="section-interview" class="section">
+                <div class="section-header">
+                    <div class="section-eyebrow">Demo Screen 2</div>
+                    <h1 class="section-title">Interview Simulation — TTS + STT</h1>
+                    <p class="section-desc">Simulates Sarvam bulbul:v2 (TTS) asking questions in English and
+                        saarika:v2.5 (STT) transcribing answers. Tracks character and second counts for exact cost
+                        calculation.</p>
+                </div>
+
+                <div class="grid2">
+                    <div>
+                        <div class="card">
+                            <div class="card-title">Call Status</div>
+                            <div class="flex flex-between" style="margin-bottom:14px;">
+                                <div class="status">
+                                    <div class="status-dot" id="callDot"></div>
+                                    <span id="callStatusText">Ready to start</span>
+                                </div>
+                                <span class="tag tag-teal" id="qProgressTag">Q 0/0</span>
+                            </div>
+
+                            <div class="waveform" id="waveform">
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                            </div>
+
+                            <div class="field" style="margin-top:14px;">
+                                <label>Current Question (TTS — bulbul:v2)</label>
+                                <div class="transcript-area" id="currentQ" style="color:var(--amber); min-height:60px;">
+                                    Start the interview to load questions...
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <div id="volume-meter-container" style="display:none; align-items:center; gap:8px; margin-bottom:8px;">
+                                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-family:var(--mono);">Input Level:</div>
+                                    <div id="volume-meter" style="flex:1; height:4px; background:var(--surface3); border-radius:2px; overflow:hidden;">
+                                        <div id="volume-bar" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;"></div>
+                                    </div>
+                                </div>
+                                <label>Live Transcript (STT — Deepgram nova-2 ⚡)</label>
+                                <div class="transcript-area" id="liveTranscript">
+                                    <span class="transcript-tag">Candidate Answer</span>
+                                    <span class="transcript-lang">en-IN · Deepgram</span>
+                                    <span class="text-muted">Waiting for answer...</span>
+                                </div>
+                            </div>
+
+                            <div class="flex gap mt">
+                                <button class="btn btn-teal btn-sm" id="startCallBtn" onclick="startInterview()">▶
+                                    Start</button>
+                                <button class="btn btn-amber btn-sm" id="nextQBtn" onclick="nextQ()" disabled style="display: inline-block;">Next
+                                    →</button>
+                                <button class="btn btn-rose btn-sm" id="endCallBtn" onclick="endInterview()" disabled>■
+                                    End</button>
+                            </div>
+                        </div>
+
+                        <div class="card mt">
+                            <div class="card-title">Sarvam API Cost — This Interview <span class="pill">Live</span>
+                            </div>
+                            <div class="cost-row"><span class="cost-label">TTS chars spoken</span><span
+                                    class="cost-value" id="ttsChars">0</span></div>
+                            <div class="cost-row"><span class="cost-label">TTS cost (₹15/10K ch)</span><span
+                                    class="cost-value" id="ttsCost">$0.0000</span></div>
+                            <div class="cost-row"><span class="cost-label">STT seconds captured</span><span
+                                    class="cost-value" id="sttSecs">0s</span></div>
+                            <div class="cost-row"><span class="cost-label">STT cost (nova-2)</span><span
+                                    class="cost-value" id="sttCost">$0.0000</span></div>
+                            <div class="cost-total new">
+                                <span style="font-weight:700; font-size:12px;">Sarvam total so far</span>
+                                <span class="cost-value" id="sarvamRunning">$0.0000</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Transcript Store <span class="pill" id="transcriptCount">0 pairs</span>
+                        </div>
+                        <div id="transcriptStore" style="max-height:540px; overflow-y:auto;">
+                            <div class="text-muted" style="text-align:center; padding:40px 0;">
+                                Q&A pairs stored here as the interview progresses
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ════════════════════════════════════
+     SCREEN 3 — SCORING
+════════════════════════════════════ -->
+            <div id="section-scoring" class="section">
+                <div class="section-header">
+                    <div class="section-eyebrow">Demo Screen 3</div>
+                    <h1 class="section-title">Answer Scoring — GPT-4o / GPT-4o-mini</h1>
+                    <p class="section-desc">Sends all Q&A transcript pairs to GPT for structured evaluation. Compare
+                        cost of gpt-4o vs gpt-4o-mini for the scoring step.</p>
+                </div>
+
+                <div class="grid2">
+                    <div>
+                        <div class="card">
+                            <div class="card-title">Scoring Config</div>
+                            <div class="field">
+                                <label>Scoring Model</label>
+                                <select id="scoringModel">
+                                    <option value="gpt-4o">gpt-4o (best quality)</option>
+                                    <option value="gpt-4o-mini" selected>gpt-4o-mini (cheapest)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-teal w100" id="scoreBtn" onclick="runScoring()">
+                                <span id="scoreBtnText">📊 Run Evaluation</span>
+                            </button>
+
+                            <div class="divider"></div>
+                            <div class="card-title">Scoring Cost Comparison</div>
+                            <div class="cost-row">
+                                <span class="cost-label">GPT-4o (input $2.50/1M)</span>
+                                <span class="cost-value" id="score4oCost">~$0.0030</span>
+                            </div>
+                            <div class="cost-row">
+                                <span class="cost-label">GPT-4o-mini (input $0.15/1M)</span>
+                                <span class="cost-value" id="scoreMiniCost">~$0.0002</span>
+                            </div>
+                            <div class="saving-pill" style="font-size:11px;">
+                                💡 GPT-4o-mini saves ~93% on scoring
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="scoreReport">
+                        <div class="card-title">Evaluation Report</div>
+                        <div class="text-muted" style="text-align:center; padding:40px 0;">
+                            Run evaluation after the interview to see scores
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ════════════════════════════════════
+     SCREEN 4 — COST METER
+════════════════════════════════════ -->
+            <div id="section-costs" class="section">
+                <div class="section-header">
+                    <div class="section-eyebrow">Demo Screen 4 — Key Validation</div>
+                    <h1 class="section-title">Real-Time Cost Meter</h1>
+                    <p class="section-desc">Every API call in this demo accumulates cost. This screen shows whether the
+                        projected cost metrics from the spreadsheet hold true against actual usage.</p>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat">
+                        <div class="stat-val text-teal" id="statTotalNew">$0.00</div>
+                        <div class="stat-label">New Stack Cost</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val text-rose" id="statRetell">$0.00</div>
+                        <div class="stat-label">Retell Equivalent</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val text-amber" id="statSaving">$0.00</div>
+                        <div class="stat-label">Saved vs Retell</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val text-blue" id="statSarvamStack">$0.00</div>
+                        <div class="stat-label">Sarvam Stack Est.</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-val text-muted" id="statSpeakingTime">0s</div>
+                        <div class="stat-label">Candidate Speaking</div>
+                    </div>
+                </div>
+
+                <div class="grid2">
+                    <div class="card">
+                        <div class="card-title">Per-Component Breakdown</div>
+                        <div class="cost-row"><span class="cost-label">GPT-4o — Question Generation</span><span
+                                class="cost-value" id="mCostQGen">$0.0000</span></div>
+                        <div class="cost-row"><span class="cost-label">Sarvam TTS — bulbul:v2</span><span
+                                class="cost-value" id="mCostTTS">$0.0000</span></div>
+                        <div class="cost-row"><span class="cost-label">Deepgram STT — nova-2 ⚡</span><span
+                                class="cost-value" id="mCostSTT">$0.0000</span></div>
+                        <div class="cost-row"><span class="cost-label">GPT-4o/mini — Scoring</span><span
+                                class="cost-value" id="mCostScore">$0.0000</span></div>
+                        <div class="cost-divider"></div>
+                        <div class="cost-total new">
+                            <span style="font-weight:700;">New Stack Total</span>
+                            <span class="cost-value" id="mCostTotal">$0.0000</span>
+                        </div>
+                        <div class="cost-total old" style="margin-top:6px;">
+                            <span style="font-weight:700; color:var(--rose);" id="retellLabel">Retell
+                                (calculating...)</span>
+                            <span class="cost-value retell" id="mCostRetell">$0.0000</span>
+                        </div>
+                        <div class="cost-total" style="margin-top:6px; border-top:1px dashed var(--border); padding-top:6px;">
+                            <span style="font-weight:700; color:var(--blue);">Sarvam Stack (Saarika + Bulbul)</span>
+                            <span class="cost-value" id="mCostSarvamStack">$0.0000</span>
+                        </div>
+                        <div class="saving-pill" id="savingPill" style="display:none;">
+                            ✅ Saved <span id="savingAmount">$0.00</span> vs Retell
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Cost vs Projection <span class="pill">Validation</span></div>
+                        <div id="projectionValidation">
+                            <div class="text-muted" style="padding:10px 0; font-size:11px; line-height:1.8;">
+                                Run all 4 demo screens (generate questions → interview → score) to see whether the
+                                actual API costs match the projections from the cost comparison spreadsheet.
+                            </div>
+                            <div class="divider"></div>
+                            <div class="card-title" style="margin-bottom:12px;">Projected (from spreadsheet)</div>
+                            <div class="cost-row"><span class="cost-label">GPT-4o Q-gen (8Q, 800+350 tok)</span><span
+                                    class="cost-value">~$0.0055</span></div>
+                            <div class="cost-row"><span class="cost-label">Sarvam TTS (8 × 120 chars)</span><span
+                                    class="cost-value">~$0.0016</span></div>
+                            <div class="cost-row"><span class="cost-label">Sarvam STT (8 × 45s)</span><span
+                                    class="cost-value">~$0.0332</span></div>
+                            <div class="cost-row"><span class="cost-label">GPT-4o-mini scoring (1800 tok)</span><span
+                                    class="cost-value">~$0.0005</span></div>
+                            <div class="cost-total new" style="margin-top:8px;">
+                                <span style="font-weight:700;">Projected total / interview</span>
+                                <span class="cost-value">~$0.041</span>
+                            </div>
+                            <div class="note mt" style="font-size:10px;">
+                                ⚠️ Note: STT is the dominant cost (~80% of total). Reducing average answer duration from
+                                45s to 30s cuts total cost by ~25%.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt">
+                    <div class="card-title">Scale Projection — Monthly</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr>
+                                    <th
+                                        style="text-align:left; padding:8px 12px; background:var(--surface2); color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; border:1px solid var(--border);">
+                                        Interviews/Month</th>
+                                    <th
+                                        style="padding:8px; background:var(--rose-dim); color:var(--rose); font-size:10px; border:1px solid var(--border);">
+                                        Retell AI</th>
+                                    <th
+                                        style="padding:8px; background:var(--surface2); color:var(--muted); font-size:10px; border:1px solid var(--border);">
+                                        New Stack (DG)</th>
+                                    <th
+                                        style="padding:8px; background:var(--blue-dim); color:var(--blue); font-size:10px; border:1px solid var(--border);">
+                                        Sarvam Stack (Est)</th>
+                                    <th
+                                        style="padding:8px; background:var(--amber-dim); color:var(--amber); font-size:10px; border:1px solid var(--border);">
+                                        Monthly Saving</th>
+                                    <th
+                                        style="padding:8px; background:var(--surface2); color:var(--muted); font-size:10px; border:1px solid var(--border);">
+                                        Annual Saving</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scaleTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    
+    <!-- Real-time Debug Overlay -->
+    <div id="dg-debug" style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.8); color:#fff; font-family:monospace; font-size:10px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); z-index:10000; pointer-events:none; display:flex; gap:15px;">
+        <div>KEY: <span id="dg-debug-key" style="color:var(--muted)">WAITING</span></div>
+        <div>WS: <span id="dg-debug-status" style="color:var(--muted)">IDLE</span></div>
+        <div>BUF: <span id="dg-debug-chars" style="color:var(--teal)">0 chars</span></div>
+    </div>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────────────────────
+        // HELPERS — get keys from sidebar inputs
+        // ─────────────────────────────────────────────────────────────────────────────
+        // Keys are now managed server-side via .env — these stubs kept for compatibility
+        const getOpenAIKey = () => '';
+        const getSarvamKey = () => '';
+
+        function requireKeys(...keys) {
+            // Keys are managed server-side via .env — no client validation needed
+            return true;
+        }
+
+        function showToast(msg, type = 'teal') {
+            const colors = { teal: 'var(--teal)', amber: 'var(--amber)', rose: 'var(--rose)' };
+            const t = document.createElement('div');
+            t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;
+    background:var(--surface2);border:1px solid ${colors[type]};
+    color:${colors[type]};padding:12px 18px;border-radius:10px;
+    font-family:var(--mono);font-size:12px;font-weight:600;
+    max-width:360px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    animation:fadeUp 0.3s ease;`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // STATE
+        // ─────────────────────────────────────────────────────────────────────────────
+        let sessionCost = { qgen: 0, tts: 0, stt: 0, score: 0 };
+        let generatedQuestions = [];
+        let storedTranscripts = [];
+        let currentQIdx = -1;
+        let callActive = false;
+        let ttsCharCount = 0;
+        let sttSecCount = 0;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingStartTime = null;
+        let currentAudio = null;
+        
+        // VAD (Voice Activity Detection) state variables
+        let vadAudioContext = null;
+        let vadSource = null;
+        let vadNode = null;
+        let isNavigating = false;
+
+        // Deepgram real-time streaming STT state
+        let deepgramKey = '';
+        let liveTranscript = '';
+        let dgSocket = null;
+        let dgAudioCtx = null;
+        let dgSource = null;
+        let dgProcessor = null;
+        let sttFallbackMode = false; // Set to true if Deepgram WS fails
+
+        console.log('🎙 STT & TTS Logic Initialized.');
+        console.log('--- SESSION START ---');
+
+        console.log('--- SESSION START ---');
+        window.addEventListener('load', () => {
+            console.log('✅ Page fully loaded');
+        });
+
+        function cleanupVAD() {
+            // Stop Deepgram PCM processor
+            if (dgProcessor) { dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+            // Close Deepgram WebSocket
+            if (dgSocket) { if (dgSocket.readyState === WebSocket.OPEN) dgSocket.close(); dgSocket = null; }
+            // VAD node
+            if (vadNode) { vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+            // Shared audio source & context (dgAudioCtx replaces vadAudioContext)
+            if (dgSource) { dgSource.disconnect(); dgSource = null; }
+            if (dgAudioCtx && dgAudioCtx.state !== "closed") { dgAudioCtx.close().catch(e => console.error(e)); dgAudioCtx = null; }
+            // Legacy cleanup
+            if (vadSource) { vadSource.disconnect(); vadSource = null; }
+            if (vadAudioContext && vadAudioContext.state !== "closed") { vadAudioContext.close().catch(e => console.error(e)); vadAudioContext = null; }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // NAVIGATION
+        // ─────────────────────────────────────────────────────────────────────────────
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('section-' + id).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function switchInnerTab(group, tab) {
+            document.querySelectorAll(`[id^="${group}-"]`).forEach(p => p.classList.remove('active'));
+            document.getElementById(`${group}-${tab}`).classList.add('active');
+            const btns = event.currentTarget.parentElement.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // COST TRACKING — driven by real API response data
+        // ─────────────────────────────────────────────────────────────────────────────
+        function trackCost(component, amount) {
+            sessionCost[component] = (sessionCost[component] || 0) + amount;
+            updateCostDisplay();
+        }
+
+        // Retell pricing components (per minute of call duration)
+        // Voice AI:   $0.070/min  (Retell base voice cost)
+        // Telephony:  $0.013/min  (Twilio outbound India via Retell)
+        // LLM:        $0.020/min  (GPT-4o-mini bundled in Retell)
+        // Total:      $0.103/min
+        const RETELL_PER_MIN = 0.103;
+        const SARVAM_STT_PER_SEC = 0.0001; // ₹30/hour approx
+
+        function calcRetellCost() {
+            const ttsSec = ttsCharCount / 14;
+            const totalSec = sttSecCount + ttsSec;
+            const totalMin = totalSec / 60;
+            return Math.max(1, Math.ceil(totalMin)) * RETELL_PER_MIN;
+        }
+
+        function calcSarvamStackCost() {
+            const openAICost = (sessionCost.qgen || 0) + (sessionCost.score || 0);
+            const ttsCost = (sessionCost.tts || 0);
+            const sarvamSTTCost = sttSecCount * SARVAM_STT_PER_SEC;
+            return openAICost + ttsCost + sarvamSTTCost;
+        }
+
+        function updateCostDisplay() {
+            const total = Object.values(sessionCost).reduce((a, b) => a + b, 0);
+            const retell = calcRetellCost();
+            const sarvamStack = calcSarvamStackCost();
+            const saving = Math.max(0, retell - total);
+
+            document.getElementById('sessionCostDisplay').textContent = '$' + total.toFixed(5);
+            const pct = retell > 0 ? Math.min(100, (total / retell) * 100) : 0;
+            document.getElementById('costBar').style.width = pct + '%';
+            document.getElementById('costPct').textContent = Math.round(pct) + '%';
+
+            document.getElementById('statTotalNew').textContent = '$' + total.toFixed(5);
+            document.getElementById('statRetell').textContent = '$' + retell.toFixed(4);
+            document.getElementById('statSaving').textContent = '$' + saving.toFixed(5);
+            document.getElementById('statSarvamStack').textContent = '$' + sarvamStack.toFixed(5);
+
+            // Format candidate speaking time
+            const min = Math.floor(sttSecCount / 60);
+            const sec = Math.round(sttSecCount % 60);
+            const timeStr = min > 0 ? `${min}m ${sec}s` : `${sec}s`;
+            document.getElementById('statSpeakingTime').textContent = timeStr;
+
+            document.getElementById('mCostQGen').textContent = '$' + (sessionCost.qgen || 0).toFixed(5);
+            document.getElementById('mCostTTS').textContent = '$' + (sessionCost.tts || 0).toFixed(5);
+            document.getElementById('mCostSTT').textContent = '$' + (sessionCost.stt || 0).toFixed(5);
+            document.getElementById('mCostScore').textContent = '$' + (sessionCost.score || 0).toFixed(5);
+            document.getElementById('mCostTotal').textContent = '$' + total.toFixed(5);
+            document.getElementById('mCostRetell').textContent = '$' + retell.toFixed(4) + ' (' + Math.max(1, Math.ceil((sttSecCount + ttsCharCount / 14) / 60)) + ' min × $' + RETELL_PER_MIN + ')';
+            document.getElementById('mCostSarvamStack').textContent = '$' + sarvamStack.toFixed(5);
+
+            if (total > 0) {
+                document.getElementById('savingPill').style.display = 'inline-flex';
+                document.getElementById('savingAmount').textContent = '$' + saving.toFixed(5);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // SCREEN 1 — REAL GPT-4o QUESTION GENERATION
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function demoGenerateQuestions() {
+            if (!requireKeys('openai')) return;
+
+            const btn = document.getElementById('genQBtn');
+            const btnTxt = document.getElementById('genQBtnText');
+            const status = document.getElementById('genQStatus');
+
+            btn.disabled = true;
+            btnTxt.innerHTML = '<span class="spin"></span> Calling GPT-4o...';
+            status.textContent = 'sending request...';
+
+            const jd = document.getElementById('jdText').value.trim();
+            const title = document.getElementById('jdTitle').value.trim() || 'Software Engineer';
+            const exp = document.getElementById('jdExp').value;
+            const numQ = parseInt(document.getElementById('numQ').value) || 6;
+
+            const systemPrompt = `You are an expert HR interviewer specialising in tech hiring.
+Your task is to generate interview questions from a job description.
+
+Rules:
+- Write ALL questions in clear, professional English
+- Keep language warm and conversational
+- Generate exactly ${numQ} questions
+- Distribute: 50% Technical, 30% Behavioural, 20% HR/Culture
+- Each question should be answerable verbally in under 90 seconds
+- Avoid compound questions — one idea per question only
+- Use second person "you" in a warm, professional tone
+
+Output ONLY valid JSON, no markdown:
+{"questions":[{"id":1,"text":"<question>","category":"technical|behavioural|hr","difficulty":"easy|medium|hard"}]}`;
+
+            const userPrompt = `Role: ${title}\nExperience: ${exp}\nNumber of questions: ${numQ}\n\nJob Description:\n${jd}\n\nGenerate the questions now.`;
+
+            try {
+                const res = await fetch('/proxy/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getOpenAIKey()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o',
+                        response_format: { type: 'json_object' },
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ]
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error?.message || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                const usage = data.usage;
+
+                // Real token costs from actual response
+                const inputCost = usage.prompt_tokens * 0.0000025;  // $2.50/1M
+                const outputCost = usage.completion_tokens * 0.00001;    // $10.00/1M
+                const totalCost = inputCost + outputCost;
+                trackCost('qgen', totalCost);
+
+                // Real token counts displayed
+                document.getElementById('costInputTok').textContent = usage.prompt_tokens;
+                document.getElementById('costOutputTok').textContent = usage.completion_tokens;
+                document.getElementById('costInput').textContent = '$' + inputCost.toFixed(6);
+                document.getElementById('costOutput').textContent = '$' + outputCost.toFixed(6);
+                document.getElementById('costQGenTotal').textContent = '$' + totalCost.toFixed(6);
+                document.getElementById('genCostCard').style.display = 'block';
+
+                const parsed = JSON.parse(data.choices[0].message.content);
+                generatedQuestions = parsed.questions || [];
+                renderQuestions();
+
+                status.textContent = `✓ ${generatedQuestions.length} questions generated`;
+                showToast(`✅ Generated ${generatedQuestions.length} questions — cost: $${totalCost.toFixed(6)}`, 'teal');
+
+            } catch (err) {
+                status.textContent = 'error — check console';
+                showToast(`❌ GPT-4o error: ${err.message}`, 'rose');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btnTxt.textContent = '⚡ Generate Questions';
+            }
+        }
+
+        function renderQuestions() {
+            const list = document.getElementById('qGenList');
+            document.getElementById('qGenCount').textContent = generatedQuestions.length + ' questions';
+            if (!generatedQuestions.length) {
+                list.innerHTML = '<div class="text-muted" style="text-align:center;padding:40px 0;">No questions yet</div>';
+                return;
+            }
+            const catColor = { technical: 'tag-blue', behavioural: 'tag-amber', hr: 'tag-teal' };
+            list.innerHTML = generatedQuestions.map((q, i) => `
+    <div class="q-item">
+      <div class="q-num">${i + 1}</div>
+      <div class="q-text">${q.text}</div>
+      <span class="tag ${catColor[q.category] || 'tag-blue'}">${q.category}</span>
+    </div>
+  `).join('');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // SCREEN 2 — REAL SARVAM TTS + MIC RECORDING + REAL SARVAM STT
+        // ─────────────────────────────────────────────────────────────────────────────
+        function startInterview() {
+            if (!requireKeys('sarvam')) return;
+            if (!generatedQuestions.length) {
+                showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
+            }
+            
+            // Add introductory line for the first question
+            if (!generatedQuestions[0].dynamicText) {
+                generatedQuestions[0].dynamicText = "Hello, I am Emma from Ideal IT Techno. Let's get started. " + generatedQuestions[0].text;
+            }
+
+            callActive = true; currentQIdx = 0;
+            storedTranscripts = []; ttsCharCount = 0; sttSecCount = 0;
+
+            document.getElementById('startCallBtn').disabled = true;
+            document.getElementById('nextQBtn').disabled = false;
+            document.getElementById('endCallBtn').disabled = false;
+            document.getElementById('transcriptStore').innerHTML = '';
+            document.getElementById('transcriptCount').textContent = '0 pairs';
+
+            loadQuestion(0);
+        }
+
+        async function loadQuestion(idx) {
+            if (idx >= generatedQuestions.length) { endInterview(); return; }
+            currentQIdx = idx;
+            const q = generatedQuestions[idx];
+
+            document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
+            const textToSpeak = q.dynamicText ? q.dynamicText : q.text;
+            document.getElementById('currentQ').textContent = textToSpeak;
+            document.getElementById('callDot').className = 'status-dot speaking';
+            document.getElementById('callStatusText').textContent = `TTS: Generating audio for Q${idx + 1}...`;
+            setWaveform(true);
+
+            await speakQuestion(textToSpeak);
+            startRecordingForCurrent();
+        }
+
+        async function loadQuestionNoSpeak(idx) {
+            if (idx >= generatedQuestions.length) { endInterview(); return; }
+            currentQIdx = idx;
+            const q = generatedQuestions[idx];
+            document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
+            // The text is already shown and spoken by generateConversationalNext via websocket
+            await startRecordingForCurrent();
+        }
+
+        async function startRecordingForCurrent() {
+            document.getElementById('callDot').className = 'status-dot live';
+            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+            document.getElementById('liveTranscript').innerHTML = `
+                <span class="transcript-tag">Your Answer</span>
+                <span class="transcript-lang">en-IN · Deepgram nova-2</span>
+                <span class="text-muted">🔴 Recording... speak your answer now</span>
+            `;
+            await startRecording();
+        }
+
+        async function speakQuestion(text) {
+            try {
+                const chars = text.length;
+                const res = await fetch('/proxy/sarvam/text-to-speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: [text],
+                        target_language_code: 'en-IN',
+                        speaker: 'anushka',
+                        model: 'bulbul:v2',
+                        audio_format: 'mp3',
+                        pace: 0.95,
+                        pitch: 0,
+                        loudness: 1.4,
+                        enable_preprocessing: true
+                    })
+                });
+
+                if (!res.ok) {
+                    const raw = await res.text();
+                    console.error('TTS raw error response:', raw);
+                    let msg = `TTS HTTP ${res.status}`;
+                    try { msg = JSON.parse(raw)?.error?.message || msg; } catch (_) { }
+                    throw new Error(msg);
+                }
+
+                const raw = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch (_) {
+                    console.error('TTS non-JSON success response:', raw.slice(0, 300));
+                    throw new Error('TTS returned non-JSON response — check console for details');
+                }
+
+                const audioB64 = data.audios?.[0];
+                if (!audioB64) {
+                    console.error('TTS response missing audios field:', JSON.stringify(data).slice(0, 300));
+                    throw new Error('No audio returned from Sarvam TTS — check console for details');
+                }
+
+                // Real cost — Rs.15 per 10K chars
+                const cost = chars * 0.0000165;
+                ttsCharCount += chars;
+                trackCost('tts', cost);
+                updateInterviewCostDisplay();
+
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => {
+                        console.warn('⌛ TTS playback safety timeout reached');
+                        resolve();
+                    }, 15000); // 15s max for one question's audio
+                    
+                    currentAudio = new Audio(`data:audio/mp3;base64,${audioB64}`);
+                    currentAudio.onended = () => { clearTimeout(timer); resolve(); };
+                    currentAudio.onerror = (e) => { clearTimeout(timer); reject(e); };
+                    currentAudio.play().catch(err => {
+                        clearTimeout(timer);
+                        console.warn('🔇 Audio play blocked or failed:', err);
+                        resolve(); // Don't block the interview if audio fails
+                    });
+                });
+
+            } catch (err) {
+                showToast(`TTS error: ${err.message}`, 'rose');
+                console.error('TTS error full:', err);
+            }
+        }
+
+        async function startRecording() {
+            console.log('🚀 startRecording() called');
+            liveTranscript = '';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+                });
+                audioChunks = [];
+                recordingStartTime = Date.now();
+
+                // MediaRecorder — kept only for duration tracking
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+                        ? 'audio/ogg;codecs=opus'
+                        : 'audio/webm';
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.start(100);
+
+                // Shared AudioContext at 16kHz for VAD + Deepgram PCM streaming
+                dgAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                if (dgAudioCtx.state === 'suspended') await dgAudioCtx.resume();
+                dgSource = dgAudioCtx.createMediaStreamSource(stream);
+
+                // ── VAD setup ──
+                let analyser = dgAudioCtx.createAnalyser();
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+                vadNode = dgAudioCtx.createScriptProcessor(2048, 1, 1);
+                dgSource.connect(analyser);
+                analyser.connect(vadNode);
+                vadNode.connect(dgAudioCtx.destination);
+                let silenceStart = Date.now();
+                let hasSpoken = false;
+
+                // ── Deepgram WebSocket real-time STT (via Backend Proxy) ──
+                if (!sttFallbackMode) {
+                    return new Promise((resolve) => {
+                        document.getElementById('callStatusText').textContent = 'Connecting to STT Proxy...';
+                        
+                        dgSocket = new WebSocket('ws://127.0.0.1:3002');
+                        dgSocket.binaryType = 'arraybuffer';
+
+                        const dgTimeout = setTimeout(() => {
+                            if (dgSocket.readyState !== WebSocket.OPEN) {
+                                console.warn('⌛ STT Proxy connection timed out — enabling fallback');
+                                sttFallbackMode = true;
+                                document.getElementById('dg-debug-status').textContent = 'TIMEOUT';
+                                resolve(); // Proceed with fallback if possible
+                            }
+                        }, 5000);
+
+                        dgSocket.onopen = () => {
+                            clearTimeout(dgTimeout);
+                            console.log('✅ Connected to STT Proxy');
+                            dgSocket.send(JSON.stringify({ action: 'stt' }));
+                            document.getElementById('callStatusText').textContent = '🎙 Recording with Deepgram...';
+                            document.getElementById('dg-debug-status').textContent = 'CONNECTED';
+                            document.getElementById('dg-debug-status').style.color = 'var(--teal)';
+                            resolve();
+                        };
+
+                        dgSocket.onclose = (event) => {
+                            console.warn(`🔌 STT Proxy Closed: Code ${event.code}, Reason: ${event.reason || 'None'}`);
+                            document.getElementById('dg-debug-status').textContent = 'CLOSED (' + event.code + ')';
+                            document.getElementById('dg-debug-status').style.color = 'var(--rose)';
+                            if (event.code !== 1000) { 
+                                sttFallbackMode = true; 
+                                console.log('🔄 Switching to STT Fallback Mode (HTTP POST)');
+                            }
+                        };
+
+                        // PCM processor logic...
+                        dgProcessor = dgAudioCtx.createScriptProcessor(4096, 1, 1);
+                        dgSource.connect(dgProcessor);
+                        dgProcessor.connect(dgAudioCtx.destination);
+                        dgProcessor.onaudioprocess = (e) => {
+                            if (!dgSocket || dgSocket.readyState !== WebSocket.OPEN) return;
+                            const f32 = e.inputBuffer.getChannelData(0);
+                            const i16 = new Int16Array(f32.length);
+                            for (let i = 0; i < f32.length; i++) {
+                                const s = Math.max(-1, Math.min(1, f32[i]));
+                                i16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                            }
+                            dgSocket.send(i16.buffer);
+                        };
+
+                        dgSocket.onmessage = (event) => {
+                            try {
+                                const data = JSON.parse(event.data);
+                                if (data.type === 'Results') {
+                                    const t = data.channel?.alternatives?.[0]?.transcript || '';
+                                    if (t.trim()) {
+                                        if (data.is_final) {
+                                            liveTranscript += (liveTranscript ? ' ' : '') + t.trim();
+                                            const lowerFull = liveTranscript.toLowerCase();
+                                            if (lowerFull.includes("next question") || lowerFull.includes("move on")) {
+                                                console.log('🗣 Verbal Command Detected in full transcript:', liveTranscript);
+                                                showToast('🗣 Command detected: Moving to next...', 'teal');
+                                                nextQ();
+                                                return; 
+                                            }
+                                        }
+                                        document.getElementById('liveTranscript').innerHTML = `
+                                            <span class="transcript-tag">Your Answer</span>
+                                            <span class="transcript-lang">en-IN &middot; Deepgram nova-2 &#x26A1;</span>
+                                            ${liveTranscript} <span style="opacity:0.6">${!data.is_final ? t : ''}</span>`;
+                                        document.getElementById('dg-debug-chars').textContent = liveTranscript.length + ' chars';
+                                    }
+                                }
+                            } catch(e) {}
+                        };
+                        dgSocket.onerror = (err) => {
+                            console.error('Deepgram WS error:', err);
+                            document.getElementById('callStatusText').textContent = '⚠️ Deepgram connection error';
+                            resolve(); // Resolve anyway so we don't hang UI
+                        };
+
+                        // VAD: silence detection
+                        setupVAD(analyser, silenceStart, hasSpoken);
+                    });
+                } else {
+                    console.log('Using STT Fallback Mode (Batch HTTP)');
+                    document.getElementById('callStatusText').textContent = '🎙 Recording (Batch Fallback)...';
+                    document.getElementById('dg-debug-status').textContent = 'FALLBACK';
+                    setupVAD(analyser, silenceStart, hasSpoken);
+                }
+
+                document.getElementById('volume-meter-container').style.display = 'flex';
+            } catch (err) {
+                showToast(`Microphone access denied: ${err.message}`, 'rose');
+                document.getElementById('callStatusText').textContent = 'Microphone access denied';
+            }
+        }
+
+        // Helper to separate VAD logic so it can be called from both paths
+        function setupVAD(analyser, silenceStart, hasSpoken) {
+            vadNode.onaudioprocess = function() {
+                let array = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(array);
+                let sum = 0;
+                for(let i = 0; i < array.length; i++) sum += array[i];
+                const avg = sum / array.length;
+                
+                const volBar = document.getElementById('volume-bar');
+                if (volBar) {
+                    const pct = Math.min(100, (avg / 60) * 100);
+                    volBar.style.width = pct + '%';
+                    volBar.style.background = avg > 20 ? 'var(--teal)' : 'var(--muted)';
+                }
+
+                if (avg > 15) {
+                    silenceStart = Date.now();
+                    if (!hasSpoken) {
+                        console.log('🎤 VAD: Speech detected');
+                        hasSpoken = true;
+                    }
+                } else if (hasSpoken && (Date.now() - silenceStart > 2000)) {
+                    if (Date.now() - recordingStartTime > 3000) {
+                        console.log('🔇 VAD: Silence detected, submitting...');
+                        hasSpoken = false;
+                        nextQ();
+                    } else {
+                        hasSpoken = false;
+                    }
+                }
+            };
+        }
+
+        // Convert any browser audio blob -> 16kHz mono WAV (what Sarvam STT requires)
+
+
+        async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction) {
+            document.getElementById('callStatusText').textContent = 'Thinking...';
+            document.getElementById('currentQ').innerHTML = ''; // Clear for streaming
+            document.getElementById('callDot').className = 'status-dot speaking';
+            
+            // Web Audio API context for seamless playback of chunks
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+            return new Promise((resolve, reject) => {
+                let ws;
+                let fullResponse = "";
+                let isPlaying = false;
+                let isDone = false;
+                
+                let nextPlayTime = 0;
+                let sourceNodes = []; 
+                
+                async function playAudioChunk(arrayBuffer) {
+                    try {
+                        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                        const source = audioCtx.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioCtx.destination);
+                        
+                        // Ensure it plays after the previous chunk finishes
+                        const currentTime = audioCtx.currentTime;
+                        if (nextPlayTime < currentTime) {
+                            nextPlayTime = currentTime;
+                        }
+                        
+                        source.start(nextPlayTime);
+                        
+                        // Update UI state when we start making sound
+                        if (!isPlaying) {
+                            setWaveform(true);
+                            isPlaying = true;
+                        }
+                        
+                        sourceNodes.push(source);
+                        
+                        // When this specific source chunk finishes
+                        source.onended = () => {
+                            if (audioCtx.currentTime >= nextPlayTime && isDone) {
+                                isPlaying = false;
+                                setWaveform(false);
+                                
+                                let action = "next";
+                                if (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) {
+                                    action = "repeat";
+                                } else if (fullResponse.includes("[[END_INTERVIEW]]")) {
+                                    action = "end";
+                                }
+                                
+                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
+                            }
+                        };
+                        
+                        nextPlayTime += audioBuffer.duration;
+                    } catch (e) {
+                         console.error("Audio Decode Error:", e);
+                    }
+                }
+                
+                ws = new WebSocket('ws://127.0.0.1:3002');
+                ws.binaryType = "arraybuffer"; 
+                
+                // 10 second safety timer: if no tokens or audio arrive, move on anyway
+                const streamSafetyTimeout = setTimeout(() => {
+                    if (fullResponse.length === 0 && !isDone) {
+                        console.warn("⚠️ Stream Safety Timeout: No response from server");
+                        isDone = true;
+                        if (ws.readyState === WebSocket.OPEN) ws.close();
+                        resolve({ response: nextQObjOrInstruction, action: "next" });
+                    }
+                }, 10000);
+                
+                ws.onopen = () => {
+                    ws.send(JSON.stringify({
+                        action: "ask",
+                        prev: prevQ,
+                        transcript: userAns,
+                        nextQ: nextQObjOrInstruction
+                    }));
+                };
+                
+                ws.onmessage = (msg) => {
+                    // Check if message is binary Data (Amazon Polly MP3 chunk)
+                    if (msg.data instanceof ArrayBuffer) {
+                        playAudioChunk(msg.data);
+                        return;
+                    }
+                
+                    const data = JSON.parse(msg.data);
+                    if (data.type === "token") {
+                        fullResponse += data.text;
+                        // Hide termination token from UI
+                        const displayText = fullResponse.replace("[[END_INTERVIEW]]", "").replace(/\\n/g, '<br/>');
+                        document.getElementById('currentQ').innerHTML = displayText;
+                    } else if (data.type === "usage") {
+                        // Track conversational LLM/TTS costs
+                        if (data.openai) {
+                            const inCost = data.openai.input * 0.0000025;
+                            const outCost = data.openai.output * 0.00001;
+                            trackCost('qgen', inCost + outCost);
+                        }
+                        if (data.tts_chars) {
+                            const ttsCost = data.tts_chars * 0.0000165;
+                            ttsCharCount += data.tts_chars;
+                            trackCost('tts', ttsCost);
+                        }
+                    } else if (data.type === "audio_start") {
+                        // Backend started generating an audio block
+                    } else if (data.type === "audio_end") {
+                        // Backend finished sending chunks for a block
+                    } else if (data.type === "done") {
+                        isDone = true;
+                        // Trigger final check if queue is empty
+                        if (!isPlaying || audioCtx.currentTime >= nextPlayTime) {
+                            setWaveform(false);
+                            let action = "next";
+                            if (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) {
+                                action = "repeat";
+                            } else if (fullResponse.includes("[[END_INTERVIEW]]")) {
+                                action = "end";
+                            }
+                            resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
+                        }
+                    } else if (data.type === "error") {
+                        console.error("WebSocket Stream Error:", data.msg);
+                        resolve({ response: nextQObjOrInstruction, action: "next" });
+                    }
+                };
+                
+                ws.onerror = (err) => {
+                    console.error("WebSocket connection error:", err);
+                    resolve({ response: nextQObjOrInstruction, action: "next" });
+                };
+            });
+        }
+
+        async function nextQ() {
+            if (isNavigating || !callActive) return;
+            isNavigating = true;
+            showToast('⏳ Processing answer...', 'teal');
+            try {
+                console.log('--- nextQ triggered ---');
+                document.getElementById('volume-meter-container').style.display = 'none';
+                cleanupVAD();
+                
+                // Stop recording and transcribe before moving on
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    document.getElementById('nextQBtn').disabled = true;
+                    document.getElementById('callStatusText').textContent = 'Transcribing answer...';
+
+                    await new Promise(resolve => {
+                        const timer = setTimeout(resolve, 2000); // 2s safety
+                        mediaRecorder.onstop = () => { clearTimeout(timer); resolve(); };
+                        mediaRecorder.stop();
+                        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                    });
+
+                    const durationSec = (Date.now() - recordingStartTime) / 1000;
+
+                    // ── Deepgram streaming: signal end & collect final results ──
+                    if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+                        dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
+                        await new Promise(resolve => setTimeout(resolve, 400)); // wait for last finals
+                    }
+                    // Cleanup audio pipeline
+                    if (dgProcessor) { dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                    if (vadNode) { vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                    if (dgSource) { dgSource.disconnect(); dgSource = null; }
+                    if (dgAudioCtx && dgAudioCtx.state !== 'closed') { dgAudioCtx.close().catch(() => {}); dgAudioCtx = null; }
+                    if (dgSocket) { dgSocket.close(1000); dgSocket = null; }
+
+                    // ── STT Logic: Use live streaming OR fallback to batch ──
+                    let transcript = liveTranscript;
+                    if (!transcript || transcript === '') {
+                        console.log('No live transcript — triggering batch STT fallback...');
+                        document.getElementById('callStatusText').textContent = 'Falling back to batch STT...';
+                        try { 
+                            transcript = await transcribeAnswer(durationSec); 
+                        } catch (e) { 
+                            console.error('STT Fallback Error:', e);
+                            transcript = '[No speech detected]'; 
+                        }
+                    }
+                    console.log(`Transcript choice: "${transcript}"`);
+                    const cost = durationSec * 0.0000716; 
+                    sttSecCount += durationSec;
+                    trackCost('stt', cost);
+                    updateInterviewCostDisplay();
+                    document.getElementById('liveTranscript').innerHTML = `
+                        <span class="transcript-tag">Your Answer</span>
+                        <span class="transcript-lang">en-IN &middot; Deepgram nova-2 &#x26A1;</span>
+                        ${transcript}`;
+                    const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
+                    storeTranscript(currentQIdx, answeredQ, transcript);
+                    document.getElementById('callStatusText').textContent =
+                        `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · $${cost.toFixed(5)}) · Deepgram ⚡`;
+                    
+                    if (currentQIdx + 1 < generatedQuestions.length) {
+                        const result = await generateConversationalNext(
+                            generatedQuestions[currentQIdx].text, 
+                            transcript, 
+                            generatedQuestions[currentQIdx+1].text
+                        );
+                        
+                        if (result.action === 'repeat') {
+                            generatedQuestions[currentQIdx].dynamicText = result.response;
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
+                        
+                        if (result.action === 'end') {
+                            endInterview();
+                            return;
+                        }
+                        
+                        generatedQuestions[currentQIdx+1].dynamicText = result.response;
+                    } else {
+                        document.getElementById('callStatusText').textContent = 'Generating wrap up...';
+                        const result = await generateConversationalNext(
+                            generatedQuestions[currentQIdx].text,
+                            transcript,
+                            "Thank the user for their time and say the interview is complete."
+                        );
+                        
+                        if (result.action === 'repeat') {
+                            generatedQuestions[currentQIdx].dynamicText = result.response;
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
+                        
+                        if (result.action === 'end') {
+                            endInterview();
+                            return;
+                        }
+
+                        endInterview();
+                        return;
+                    }
+                }
+                
+                // Hardware release delay
+                await new Promise(r => setTimeout(r, 500));
+                
+                // Advance to next question
+                await loadQuestionNoSpeak(currentQIdx + 1);
+            } catch (err) {
+                console.error('Error in nextQ:', err);
+                showToast('Failed to advance: ' + err.message, 'rose');
+            } finally {
+                document.getElementById('nextQBtn').disabled = false;
+                isNavigating = false;
+            }
+        }
+
+        // Split decoded PCM into 25s chunks and send each to Sarvam sequentially
+        // Sarvam hard limit: 30s per request — we use 25s to be safe
+        const STT_CHUNK_SEC = 25;
+        const STT_SAMPLE_RATE = 16000;
+
+        function pcmToWavBlob(int16, sampleRate) {
+            const wavBuf = new ArrayBuffer(44 + int16.byteLength);
+            const view = new DataView(wavBuf);
+            const ws = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+            ws(0, 'RIFF');
+            view.setUint32(4, 36 + int16.byteLength, true);
+            ws(8, 'WAVE');
+            ws(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);  // PCM
+            view.setUint16(22, 1, true);  // mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            ws(36, 'data');
+            view.setUint32(40, int16.byteLength, true);
+            new Int16Array(wavBuf, 44).set(int16);
+            return new Blob([wavBuf], { type: 'audio/wav' });
+        }
+
+        async function sttRequest(wavBlob, chunkIdx, total) {
+            if (total > 1) {
+                document.getElementById('callStatusText').textContent =
+                    `Transcribing chunk ${chunkIdx + 1}/${total}...`;
+            }
+
+            // Send raw WAV bytes to Deepgram — no FormData needed
+            const res = await fetch('/proxy/deepgram/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true', {
+                method: 'POST',
+                headers: { 'Content-Type': 'audio/wav' },
+                body: wavBlob
+            });
+
+            if (!res.ok) {
+                const raw = await res.text();
+                let msg = `STT HTTP ${res.status}`;
+                try { msg = JSON.parse(raw)?.err_msg || msg; } catch (_) { }
+                throw new Error(msg);
+            }
+
+            const data = await res.json();
+            // Deepgram response structure
+            return data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+        }
+
+        async function transcribeAnswer(durationSec) {
+            console.log(`Fallback transcription started. AudioChunks length: ${audioChunks.length}`);
+            if (!audioChunks.length) {
+                console.warn('No audio chunks captured by MediaRecorder.');
+                return '';
+            }
+
+            let transcript = '';
+            try {
+                document.getElementById('callStatusText').textContent = 'Converting audio to WAV...';
+
+                // Decode the raw browser recording into PCM
+                const rawBlob = new Blob(audioChunks, { type: audioChunks[0]?.type || 'audio/webm' });
+                const arrayBuf = await rawBlob.arrayBuffer();
+                const audioCtx = new AudioContext({ sampleRate: STT_SAMPLE_RATE });
+                const decoded = await audioCtx.decodeAudioData(arrayBuf);
+                audioCtx.close();
+
+                // Mix down to mono Float32
+                const numSamples = decoded.length;
+                const pcm = new Float32Array(numSamples);
+                for (let c = 0; c < decoded.numberOfChannels; c++) {
+                    const ch = decoded.getChannelData(c);
+                    for (let i = 0; i < numSamples; i++) pcm[i] += ch[i];
+                }
+                if (decoded.numberOfChannels > 1) {
+                    for (let i = 0; i < numSamples; i++) pcm[i] /= decoded.numberOfChannels;
+                }
+
+                // Convert to Int16
+                const int16 = new Int16Array(numSamples);
+                for (let i = 0; i < numSamples; i++) {
+                    const s = Math.max(-1, Math.min(1, pcm[i]));
+                    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                // Split into 25s chunks and transcribe each
+                const chunkSamples = STT_CHUNK_SEC * STT_SAMPLE_RATE;
+                const numChunks = Math.ceil(numSamples / chunkSamples);
+                const transcripts = [];
+
+                for (let i = 0; i < numChunks; i++) {
+                    const start = i * chunkSamples;
+                    const end = Math.min(start + chunkSamples, numSamples);
+                    const slice = int16.slice(start, end);
+                    const wavBlob = pcmToWavBlob(slice, STT_SAMPLE_RATE);
+                    const text = await sttRequest(wavBlob, i, numChunks);
+                    transcripts.push(text);
+                }
+
+                transcript = transcripts.join(' ').trim() || '[No transcript returned]';
+
+                // Deepgram pricing: $0.0043/min = $0.0000716/sec
+                const cost = durationSec * 0.0000716;
+                sttSecCount += durationSec;
+                trackCost('stt', cost);
+                updateInterviewCostDisplay();
+
+                document.getElementById('liveTranscript').innerHTML = `
+      <span class="transcript-tag">Your Answer</span>
+      <span class="transcript-lang">en-IN · Deepgram nova-2</span>
+      ${transcript}
+    `;
+
+                const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
+                storeTranscript(currentQIdx, answeredQ, transcript);
+                document.getElementById('callStatusText').textContent =
+                    `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · ${numChunks} chunk${numChunks > 1 ? 's' : ''} · $${cost.toFixed(5)})`;
+
+            } catch (err) {
+                showToast(`STT error: ${err.message}`, 'rose');
+                console.error('STT error:', err);
+                storeTranscript(currentQIdx, answeredQ, '[Transcription failed]');
+                transcript = '[Transcription failed]';
+            }
+
+            setWaveform(false);
+            return transcript;
+        }
+
+        function storeTranscript(qIdx, question, answer) {
+            const finalAnswer = answer && answer.trim() ? answer.trim() : '[No speech detected]';
+            storedTranscripts[qIdx] = { question, answer: finalAnswer };
+            
+            const store = document.getElementById('transcriptStore');
+            let div = document.getElementById(`transcript-item-${qIdx}`);
+            
+            if (!div) {
+                div = document.createElement('div');
+                div.id = `transcript-item-${qIdx}`;
+                div.style.marginBottom = '12px';
+                store.appendChild(div);
+            }
+            
+            div.innerHTML = `
+    <div class="q-item" style="border-left:3px solid var(--amber);border-radius:0 8px 8px 0;">
+      <div class="q-num" style="background:var(--amber-dim);color:var(--amber);">Q${qIdx + 1}</div>
+      <div class="q-text" style="color:var(--amber);">${question}</div>
+    </div>
+    <div class="q-item" style="border-left:3px solid var(--rose);border-radius:0 8px 8px 0;margin-top:4px;">
+      <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">A${qIdx + 1}</div>
+      <div class="q-text">${finalAnswer}</div>
+    </div>
+  `;
+            store.scrollTop = store.scrollHeight;
+            document.getElementById('transcriptCount').textContent = Object.keys(storedTranscripts).filter(k => storedTranscripts[k]).length + ' pairs';
+        }
+
+        function updateInterviewCostDisplay() {
+            const ttsCost = ttsCharCount * 0.0000165;
+            const sttCost = sttSecCount * 0.000092;
+            document.getElementById('ttsChars').textContent = ttsCharCount;
+            document.getElementById('ttsCost').textContent = '$' + ttsCost.toFixed(6);
+            document.getElementById('sttSecs').textContent = sttSecCount.toFixed(1) + 's';
+            document.getElementById('sttCost').textContent = '$' + sttCost.toFixed(6);
+            document.getElementById('sarvamRunning').textContent = '$' + (ttsCost + sttCost).toFixed(6);
+        }
+
+        function setWaveform(active) {
+            document.querySelectorAll('.wave-bar').forEach((b, i) => {
+                if (active) { b.classList.add('live'); b.style.animationDelay = (i * 0.06) + 's'; }
+                else { b.classList.remove('live'); }
+            });
+        }
+
+        async function endInterview() {
+            cleanupVAD();
+            // Stop any active recording
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            }
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+
+            callActive = false;
+            document.getElementById('startCallBtn').disabled = false;
+            document.getElementById('nextQBtn').disabled = true;
+            document.getElementById('endCallBtn').disabled = true;
+            document.getElementById('callDot').className = 'status-dot';
+            document.getElementById('callStatusText').textContent = 'Interview complete — run scoring →';
+            setWaveform(false);
+            showToast('Interview ended. Head to Screen 3 to score the answers.', 'teal');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // SCREEN 3 — REAL GPT-4o / GPT-4o-mini SCORING
+        // ─────────────────────────────────────────────────────────────────────────────
+        async function runScoring() {
+            if (!requireKeys('openai')) return;
+
+            const validPairs = storedTranscripts.filter(Boolean);
+            if (!validPairs.length) {
+                showToast('⚠️ No transcripts found. Complete the interview first (Screen 2).', 'amber'); return;
+            }
+
+            const btn = document.getElementById('scoreBtn');
+            const btnTxt = document.getElementById('scoreBtnText');
+            btn.disabled = true;
+            btnTxt.innerHTML = '<span class="spin"></span> Evaluating...';
+
+            const model = document.getElementById('scoringModel').value;
+            const isMini = model === 'gpt-4o-mini';
+            const title = document.getElementById('jdTitle')?.value || 'Software Engineer';
+            const exp = document.getElementById('jdExp')?.value || 'Junior';
+
+            // Build transcript string from real stored transcripts
+            const transcriptText = storedTranscripts
+                .filter(Boolean)
+                .map((pair, i) => `Q${i + 1} [${generatedQuestions[i]?.category || 'general'}]: ${pair.question}\nA${i + 1}: ${pair.answer}`)
+                .join('\n---\n');
+
+            const systemPrompt = `You are a senior HR evaluator for a tech company.
+Evaluate interview answers fairly and objectively.
+
+Role: ${title}
+Experience: ${exp}
+
+Score each answer on these 4 dimensions (1-10 each):
+1. Relevance     — Does the answer address the question asked?
+2. Depth         — Technical correctness and specificity
+3. Communication — Clarity, fluency, and articulation in English
+4. Impression    — Confidence, self-awareness, growth mindset
+
+Compute:
+- weighted_score: Relevance 30% + Depth 35% + Communication 20% + Impression 15%
+- overall: weighted average across all questions
+- recommendation: "shortlist" if overall >= 7.5, "hold" if 5.5-7.4, "reject" if below 5.5
+
+Output ONLY valid JSON, no markdown:
+{"scores":[{"question_id":1,"relevance":8,"depth":7,"communication":9,"impression":8,"weighted_score":7.85,"feedback":"<2 sentences>"}],"overall_score":7.9,"summary":"<3-4 sentences>","recommendation":"shortlist","strengths":["<point>"],"areas_to_probe":["<point>"]}`;
+
+            try {
+                const res = await fetch('/proxy/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getOpenAIKey()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model,
+                        response_format: { type: 'json_object' },
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: `Interview transcript:\n\n${transcriptText}\n\nPlease evaluate all answers now.` }
+                        ]
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error?.message || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                const usage = data.usage;
+
+                // Real token costs
+                const inputRate = isMini ? 0.00000015 : 0.0000025;
+                const outputRate = isMini ? 0.0000006 : 0.00001;
+                const inputCost = usage.prompt_tokens * inputRate;
+                const outputCost = usage.completion_tokens * outputRate;
+                const totalCost = inputCost + outputCost;
+                trackCost('score', totalCost);
+
+                // Update comparison cells
+                document.getElementById('score4oCost').textContent = isMini ? '(not used)' : '$' + totalCost.toFixed(6);
+                document.getElementById('scoreMiniCost').textContent = isMini ? '$' + totalCost.toFixed(6) : '(not used)';
+
+                const result = JSON.parse(data.choices[0].message.content);
+                renderScoreReport(result, model, totalCost, usage);
+                showToast(`✅ Scoring complete — cost: $${totalCost.toFixed(6)} (${usage.prompt_tokens}+${usage.completion_tokens} tokens)`, 'teal');
+
+            } catch (err) {
+                showToast(`❌ Scoring error: ${err.message}`, 'rose');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btnTxt.textContent = '📊 Run Evaluation';
+            }
+        }
+
+        function renderScoreReport(result, model, cost, usage) {
+            const overall = result.overall_score || 0;
+            const rec = result.recommendation || 'hold';
+            const recClass = { shortlist: 'tag-teal', hold: 'tag-amber', reject: 'tag-rose' };
+            const pct = Math.round(overall * 10);
+
+            document.getElementById('scoreReport').innerHTML = `
+    <div class="card-title">Evaluation Report
+      <span class="tag ${recClass[rec]}">${rec.toUpperCase()}</span>
+    </div>
+
+    <div style="text-align:center; padding:10px 0 16px;">
+      <div class="overall-ring" style="--pct:${pct};">
+        <span class="overall-ring-val">${overall.toFixed(1)}</span>
+      </div>
+      <div style="font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase;">Overall Score / 10</div>
+      <div style="margin-top:6px; font-size:11px; color:var(--muted);">
+        Model: <span style="color:var(--blue)">${model}</span> &nbsp;·&nbsp;
+        Tokens: <span style="color:var(--muted)">${usage.prompt_tokens} in / ${usage.completion_tokens} out</span> &nbsp;·&nbsp;
+        Cost: <span style="color:var(--teal)">$${cost.toFixed(6)}</span>
+      </div>
+    </div>
+
+    ${result.summary ? `<div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">${result.summary}</div>` : ''}
+
+    ${(result.scores || []).map((s, i) => `
+      <div class="score-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div style="font-size:11px; color:var(--muted); flex:1; line-height:1.4;">
+            ${generatedQuestions[i]?.text || storedTranscripts[i]?.question || 'Q' + (i + 1)}
+          </div>
+          <span class="score-num">${(s.weighted_score || s.score || 0).toFixed(1)}</span>
+        </div>
+        <div class="score-bar-row">
+          <div class="score-bar-bg">
+            <div class="score-bar-fill" style="width:${(s.weighted_score || s.score || 0) * 10}%"></div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+          <span class="tag tag-blue">Relevance: ${s.relevance}/10</span>
+          <span class="tag tag-amber">Depth: ${s.depth}/10</span>
+          <span class="tag tag-teal">Comm: ${s.communication}/10</span>
+          <span class="tag tag-rose">Impression: ${s.impression}/10</span>
+        </div>
+        ${s.feedback ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5;">${s.feedback}</div>` : ''}
+      </div>
+    `).join('')}
+
+    ${result.strengths?.length ? `
+      <div style="margin-top:12px;">
+        <div style="font-size:10px;color:var(--teal);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Strengths</div>
+        ${result.strengths.map(s => `<div style="font-size:11px;color:var(--muted);padding:3px 0;">✅ ${s}</div>`).join('')}
+      </div>` : ''}
+
+    ${result.areas_to_probe?.length ? `
+      <div style="margin-top:10px;">
+        <div style="font-size:10px;color:var(--amber);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Areas to Probe</div>
+        ${result.areas_to_probe.map(a => `<div style="font-size:11px;color:var(--muted);padding:3px 0;">🔍 ${a}</div>`).join('')}
+      </div>` : ''}
+  `;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // SCREEN 4 — SCALE TABLE
+        // ─────────────────────────────────────────────────────────────────────────────
+        function buildScaleTable() {
+            const tbody = document.getElementById('scaleTable');
+            const vols = [100, 250, 500, 1000, 2500, 5000, 10000];
+            
+            const totalSec = sttSecCount + ttsCharCount / 14;
+            const callMin = totalSec > 0 ? Math.max(1, Math.ceil(totalSec / 60)) : 0;
+            const retellPer = callMin > 0 ? callMin * RETELL_PER_MIN : 0.19;
+            const dgStackPer = Object.values(sessionCost).reduce((a, b) => a + b, 0) || 0.041;
+            const sarvamStackPer = calcSarvamStackCost() || 0.045;
+
+            tbody.innerHTML = vols.map((v, i) => {
+                const r = (v * retellPer).toFixed(2);
+                const dg = (v * dgStackPer).toFixed(2);
+                const sv = (v * sarvamStackPer).toFixed(2);
+                const s = (v * Math.max(0, retellPer - dgStackPer)).toFixed(2);
+                const a = (v * Math.max(0, retellPer - dgStackPer) * 12).toFixed(0);
+                const bg = i % 2 === 0 ? 'var(--surface2)' : 'var(--surface)';
+                return `<tr style="background:${bg};">
+      <td style="padding:8px 12px;border:1px solid var(--border);font-weight:700;">${v.toLocaleString()}</td>
+      <td style="padding:8px 12px;border:1px solid var(--border);text-align:right;color:var(--rose);">$${r}</td>
+      <td style="padding:8px 12px;border:1px solid var(--border);text-align:right;color:var(--muted);">$${dg}</td>
+      <td style="padding:8px 12px;border:1px solid var(--border);text-align:right;color:var(--blue);">$${sv}</td>
+      <td style="padding:8px 12px;border:1px solid var(--border);text-align:right;color:var(--amber);font-weight:700;">$${s}</td>
+      <td style="padding:8px 12px;border:1px solid var(--border);text-align:right;color:var(--muted);">$${parseInt(a).toLocaleString()}</td>
+    </tr>`;
+            }).join('');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────────
+        // UTILS
+        // ─────────────────────────────────────────────────────────────────────────────
+        function copyPrompt(id) {
+            const map = {
+                'qgen-system': '#tab-prompt-p1 .prompt-block',
+                'tts': '#tab-prompt-p2 .prompt-block',
+                'stt': '#tab-prompt-p3 .prompt-block',
+                'score': '#tab-prompt-p4 .prompt-block',
+            };
+            const el = document.querySelector(map[id]);
+            if (!el) return;
+            navigator.clipboard.writeText(el.innerText).then(() => {
+                event.target.textContent = 'Copied!';
+                setTimeout(() => event.target.textContent = 'Copy', 1500);
+            }).catch(() => { });
+        }
+
+        // Spinner style
+        const style = document.createElement('style');
+        style.textContent = `
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid rgba(0,0,0,0.25);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+`;
+        document.head.appendChild(style);
+
+        // Init
+        buildScaleTable();
+        updateCostDisplay();
+        // Fetch Deepgram key from proxy server for real-time WS streaming
+        console.log('Fetching Deepgram key...');
+        fetch('/deepgram-key')
+            .then(r => r.json())
+            .then(d => { 
+                deepgramKey = d.key; 
+                console.log('Deepgram key loaded ⚡'); 
+                document.getElementById('dg-debug-key').textContent = 'LOADED';
+                document.getElementById('dg-debug-key').style.color = 'var(--teal)';
+            })
+            .catch(e => {
+                console.warn('Deepgram key fetch failed:', e);
+                document.getElementById('dg-debug-key').textContent = 'FAILED';
+                document.getElementById('dg-debug-key').style.color = 'var(--rose)';
+            });
+    </script>
+</body>
+
+</html>

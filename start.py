@@ -11,11 +11,11 @@ Keys are read from .env in the same folder:
 """
 
 import http.server
-import urllib.request
-import urllib.error
+import httpx
 import json
 import sys
 import socketserver
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,6 @@ USER_AGENT = (
     "Chrome/124.0.0.0 Safari/537.36"
 )
 
-
 # ── Load API keys from .env ──────────────────────────────────────────────────
 def load_env() -> dict[str, str]:
     env: dict[str, str] = {}
@@ -49,12 +48,26 @@ def load_env() -> dict[str, str]:
         env[key.strip()] = val.strip()
     return env
 
-
 _ENV          = load_env()
 SARVAM_KEY    = _ENV.get("SARVAM_AI_API", "")
 OPENAI_KEY    = _ENV.get("OPENAI_API_KEY", "")
 DEEPGRAM_KEY  = _ENV.get("DEEPGRAM_API_KEY", "")
 
+# Persistent client to avoid repeated DNS/Handshake latency
+HTTP_CLIENT = httpx.Client(timeout=60.0, follow_redirects=True)
+
+# Warm up DNS cache and TLS session for Deepgram
+def warmup_deepgram():
+    try:
+        # HEAD request primes the connection pool/DNS/TLS
+        HTTP_CLIENT.head("https://api.deepgram.com/v1/speak", timeout=5.0)
+        print("  [WARMUP] Deepgram TTS endpoint primed.")
+        HTTP_CLIENT.head("https://api.deepgram.com/v1/listen", timeout=5.0)
+        print("  [WARMUP] Deepgram STT endpoint primed.")
+    except Exception as e:
+        print(f"  [WARMUP] Error during Deepgram warmup: {e}")
+
+threading.Thread(target=warmup_deepgram, daemon=True).start()
 
 # ── Request handler ──────────────────────────────────────────────────────────
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
@@ -147,10 +160,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 "api-subscription-key": SARVAM_KEY,
                 "User-Agent":           USER_AGENT,
             }
-            # Preserve Content-Type exactly — multipart boundary must stay intact
             if ctype:
                 hdrs["Content-Type"] = ctype
-            # Debug log for non-multipart Sarvam calls (TTS / LLM)
             if "multipart" not in ctype and len(body) < 2000:
                 print(f"  DBG   {self.path}  {body.decode(errors='replace')[:300]}")
             self._forward(target, body, hdrs)
@@ -161,7 +172,6 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                     b'{"error":{"message":"DEEPGRAM_API_KEY not set in .env"}}')
                 return
             target = DEEPGRAM_BASE + self.path[len("/proxy/deepgram"):]
-            # Preserve Content-Type (audio/wav) and forward as-is
             hdrs = {
                 "Authorization": f"Token {DEEPGRAM_KEY}",
                 "User-Agent":    USER_AGENT,
@@ -175,31 +185,26 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
 
     def _forward(self, url: str, body: bytes, headers: dict[str, str]) -> None:
         try:
-            req = urllib.request.Request(
-                url, data=body, headers=headers, method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                resp_body  = resp.read()
-                resp_code  = int(resp.status)
-                resp_ctype = str(resp.headers.get("Content-Type", "application/json"))
+            resp = HTTP_CLIENT.post(url, content=body, headers=headers)
+            resp_body = resp.content
+            resp_code = resp.status_code
+            resp_ctype = resp.headers.get("Content-Type", "application/json")
             self._respond(resp_code, resp_ctype, resp_body)
 
-        except urllib.error.HTTPError as e:
-            err_body = e.read()
-            print(f"  ERROR  HTTP {e.code} from {url}")
+        except httpx.HTTPStatusError as e:
+            err_body = e.response.content
+            print(f"  ERROR  HTTP {e.response.status_code} from {url}")
             print(f"         {err_body[:500].decode(errors='replace')}")
-            self._respond(e.code, "application/json", err_body)
+            self._respond(e.response.status_code, "application/json", err_body)
 
         except Exception as ex:
             msg = json.dumps({"error": str(ex), "type": type(ex).__name__}).encode()
             print(f"  ERROR  Proxy exception: {ex}")
             self._respond(502, "application/json", msg)
 
-
 # ── Server ───────────────────────────────────────────────────────────────────
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
-
 
 def main() -> None:
     if not (Path(__file__).parent / HTML_FILE).exists():
@@ -231,7 +236,6 @@ Proxy routes:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nStopped.\n")
-
 
 if __name__ == "__main__":
     main()

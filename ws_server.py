@@ -28,7 +28,49 @@ OPENAI_KEY  = envs.get("OPENAI_API_KEY", "")
 SARVAM_KEY  = envs.get("SARVAM_AI_API", "")
 DEEPGRAM_KEY = envs.get("DEEPGRAM_API_KEY", "")
 
-log(f"Starting server. Keys: OpenAI={'SET' if OPENAI_KEY else 'MISSING'}, Sarvam={'SET' if SARVAM_KEY else 'MISSING'}, Deepgram={'SET' if DEEPGRAM_KEY else 'MISSING'}")
+# Persistent client for lower latency
+httpx_client = httpx.AsyncClient(timeout=30.0)
+
+# Warm up DNS cache for Deepgram
+async def warmup_dns():
+    try:
+        await httpx_client.head("https://api.deepgram.com", timeout=5.0)
+        log("Deepgram DNS warmed up")
+    except:
+        pass
+
+async def deepgram_tts(text_segment: str, ws) -> None:
+    if not DEEPGRAM_KEY or not text_segment.strip():
+        return
+    
+    # Try with retries for DNS flakiness
+    for attempt in range(1, 4): # Increased to 3 attempts
+        try:
+            url = "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mp3"
+            resp = await httpx_client.post(
+                url,
+                headers={
+                    "Authorization": f"Token {DEEPGRAM_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={"text": text_segment.strip()}
+            )
+            
+            if resp.status_code != 200:
+                log(f"Deepgram TTS error: {resp.status_code} - {resp.text}")
+                return
+                
+            audio_bytes = resp.content
+            await ws.send(json.dumps({"type": "audio_start"}))
+            await ws.send(audio_bytes)
+            await ws.send(json.dumps({"type": "audio_end"}))
+            return # Success
+        except Exception as e:
+            log(f"Deepgram TTS attempt {attempt} failed: {e}")
+            if attempt == 3:
+                log(f"Deepgram TTS permanent failure: {e}")
+                await ws.send(json.dumps({"type": "sentence", "text": text_segment}))
+            await asyncio.sleep(0.5)
 
 async def openai_stream(prev, user_ans, next_q_prompt, ws):
     prompt = f"""You are a conversational tech interviewer.
@@ -93,13 +135,13 @@ Do not output ANY json or markup. Output EXACTLY the raw text of what you will s
                                     buffer = ""
                                     if sentence:
                                         total_tts_chars += len(sentence)
-                                        await sarvam_tts(sentence, ws)
+                                        await deepgram_tts(sentence, ws)
                         except Exception as e:
                             log(f"Token error: {e}")
                 
                 if buffer.strip():
                     total_tts_chars += len(buffer.strip())
-                    await sarvam_tts(buffer.strip(), ws) 
+                    await deepgram_tts(buffer.strip(), ws) 
                 
                 # Send total usage for this conversational turn
                 await ws.send(json.dumps({
@@ -114,9 +156,9 @@ Do not output ANY json or markup. Output EXACTLY the raw text of what you will s
         log(f"Streaming error: {e}")
         await ws.send(json.dumps({"type": "error", "msg": str(e)}))
 
-async def deepgram_proxy(ws_frontend):
+async def deepgram_proxy(ws_frontend, sample_rate=16000):
     """Proxies audio chunks from frontend to Deepgram and results back."""
-    dg_url = "wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate=16000"
+    dg_url = f"wss://api.deepgram.com/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true&encoding=linear16&sample_rate={sample_rate}"
     
     if not DEEPGRAM_KEY:
         log("Error: DEEPGRAM_API_KEY missing")
@@ -125,19 +167,30 @@ async def deepgram_proxy(ws_frontend):
 
     auth_header = {"Authorization": f"Token {DEEPGRAM_KEY}"}
     
+    # Try connecting with retries due to possible DNS flakiness
+    ws_deepgram = None
+    for attempt in range(1, 4):
+        try:
+            log(f"Connecting to Deepgram (Attempt {attempt}): {dg_url}")
+            ws_deepgram = await websockets.connect(dg_url, additional_headers=auth_header)
+            log(f"  [DG PROXY] Connected to Deepgram success (Rate: {sample_rate})")
+            break
+        except Exception as e:
+            log(f"  [DG PROXY] Connection Attempt {attempt} failed: {e}")
+            if attempt == 3:
+                await ws_frontend.send(json.dumps({"type": "error", "msg": f"Failed to connect to Deepgram after 3 attempts: {e}"}))
+                return
+            await asyncio.sleep(1)
+
     try:
-        log(f"Connecting to Deepgram: {dg_url}")
-        async with websockets.connect(dg_url, additional_headers=auth_header) as ws_deepgram:
-            log("  [DG PROXY] Connected to Deepgram success")
-            
+        if ws_deepgram:
             async def forward_to_deepgram():
                 try:
                     async for message in ws_frontend:
                         if isinstance(message, (bytes, bytearray)):
-                            await ws_deepgram.send(message)
+                            if len(message) > 0:
+                                await ws_deepgram.send(message)
                         else:
-                            # If it's a string, it might be a JSON command (like CloseStream)
-                            # But Deepgram expect binary for audio. Let's send everything.
                             await ws_deepgram.send(message)
                 except Exception as e:
                     log(f"  [DG PROXY] Frontend -> Deepgram Error: {e}")
@@ -155,38 +208,12 @@ async def deepgram_proxy(ws_frontend):
     except Exception as e:
         log(f"  [DG PROXY] Connection Error: {type(e).__name__}: {e}")
         await ws_frontend.send(json.dumps({"type": "error", "msg": f"Proxy connection failed: {e}"}))
+    finally:
+        if ws_deepgram:
+            await ws_deepgram.close()
+            log("  [DG PROXY] Deepgram connection closed")
 
-async def sarvam_tts(text_segment: str, ws) -> None:
-    if not SARVAM_KEY or not text_segment.strip():
-        return
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://api.sarvam.ai/text-to-speech",
-                headers={"api-subscription-key": SARVAM_KEY},
-                json={
-                    "inputs": [text_segment.strip()],
-                    "target_language_code": "en-IN",
-                    "speaker": "anushka",
-                    "model": "bulbul:v2",
-                    "audio_format": "mp3",
-                    "pace": 0.95,
-                    "loudness": 1.4,
-                    "enable_preprocessing": True
-                },
-                timeout=30.0
-            )
-            data = resp.json()
-            audio_b64 = (data.get("audios") or [None])[0]
-            if not audio_b64:
-                return
-            audio_bytes = base64.b64decode(audio_b64)
-            await ws.send(json.dumps({"type": "audio_start"}))
-            await ws.send(audio_bytes)
-            await ws.send(json.dumps({"type": "audio_end"}))
-    except Exception as e:
-        log(f"Sarvam TTS error: {e}")
-        await ws.send(json.dumps({"type": "sentence", "text": text_segment}))
+log(f"Starting server. Keys: OpenAI={'SET' if OPENAI_KEY else 'MISSING'}, Sarvam={'SET' if SARVAM_KEY else 'MISSING'}, Deepgram={'SET' if DEEPGRAM_KEY else 'MISSING'}")
 
 # Fix: websockets 14+ handler only takes one argument
 async def handler(websocket):
@@ -208,8 +235,8 @@ async def handler(websocket):
                 
                 elif action == "stt":
                     log("Action: stt | Starting Deepgram Proxy")
-                    await deepgram_proxy(websocket)
-                    # We break the loop because deepgram_proxy takes over the websocket
+                    sr = data.get("sample_rate", 16000)
+                    await deepgram_proxy(websocket, sample_rate=sr)
                     break 
 
             except json.JSONDecodeError:
@@ -225,6 +252,8 @@ async def handler(websocket):
 
 async def main():
     log("WebSocket logic server running on ws://127.0.0.1:3002")
+    # Warm up DNS at startup
+    asyncio.create_task(warmup_dns())
     async with websockets.serve(handler, "127.0.0.1", 3002):
         await asyncio.Future()
 

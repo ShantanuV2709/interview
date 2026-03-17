@@ -2427,7 +2427,7 @@ Output ONLY valid JSON, no markdown:
             // Pre-connect logic server for faster thinking turns
             if (!conversationalWS || conversationalWS.readyState !== WebSocket.OPEN) {
                 console.log('🔌 Pre-connecting to logic server...');
-                conversationalWS = new WebSocket('ws://127.0.0.1:3002');
+                conversationalWS = new WebSocket(`ws://${window.location.hostname}:3002`);
                 conversationalWS.binaryType = "arraybuffer";
             }
 
@@ -2601,7 +2601,7 @@ Output ONLY valid JSON, no markdown:
                     return new Promise((resolve) => {
                         document.getElementById('callStatusText').textContent = 'Connecting to STT Proxy...';
                         
-                        dgSocket = new WebSocket('ws://127.0.0.1:3002');
+                        dgSocket = new WebSocket(`ws://${window.location.hostname}:3002`);
                         dgSocket.binaryType = 'arraybuffer';
 
                         const dgTimeout = setTimeout(() => {
@@ -2864,7 +2864,7 @@ Output ONLY valid JSON, no markdown:
                     sendAsk();
                 } else {
                     console.log('🔌 Opening new logic server connection...');
-                    ws = new WebSocket('ws://127.0.0.1:3002');
+                    ws = new WebSocket(`ws://${window.location.hostname}:3002`);
                     ws.binaryType = "arraybuffer";
                     conversationalWS = ws;
                     ws.onopen = sendAsk;
@@ -3523,7 +3523,7 @@ Output ONLY valid JSON, no markdown:
         // ─────────────────────────────────────────────────────────────────────────────
         let brainWS = null;
         let brainReconnectTimer = null;
-        const BRAIN_WS_URL = 'ws://127.0.0.1:3002/brain';
+        const BRAIN_WS_URL = `ws://${window.location.hostname}:3002/brain`;
 
         const SEVERITY_STYLES = {
             ok:       { color: 'var(--teal)',  icon: '✅' },

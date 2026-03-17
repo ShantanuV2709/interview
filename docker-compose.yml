@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  interview-app:
+    build: .
+    ports:
+      - "3000:3000"
+      - "3002:3002"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: always

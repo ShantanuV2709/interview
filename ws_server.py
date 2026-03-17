@@ -248,7 +248,7 @@ async def main():
     if BRAIN_ENABLED:
         brain.record("websocket_server", "listen", "Server started on ws://127.0.0.1:3002", "ok")
         asyncio.create_task(brain.start_periodic_analysis())
-    async with websockets.serve(handler, "127.0.0.1", 3002):
+    async with websockets.serve(handler, "0.0.0.0", 3002):
         await asyncio.Future()
 
 if __name__ == "__main__":

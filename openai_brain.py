@@ -287,10 +287,10 @@ Respond ONLY with valid JSON:
                  _log("Active Regulation: Event buffers flushed.")
                  self.record("websocket_server", "regulation", "Buffers flushed", "ok")
             elif action == "LOG_DEBUG":
-                # Create a snapshot file for debugging
-                debug_file = Path(__file__).parent / f"debug_snapshot_{int(time.time())}.json"
+                # Overwrite a single latest snapshot file to avoid file accumulation
+                debug_file = Path(__file__).parent / "debug_snapshot_latest.json"
                 debug_file.write_text(json.dumps(self.snapshot(), indent=2))
-                _log(f"Active Regulation: Debug snapshot saved to {debug_file.name}")
+                _log(f"Active Regulation: Debug snapshot updated in {debug_file.name}")
 
     async def start_periodic_analysis(self):
         _log(f"Brain watchdog started (interval={ANALYSIS_INTERVAL}s)")

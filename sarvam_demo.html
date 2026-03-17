@@ -3249,14 +3249,12 @@ Output ONLY valid JSON, no markdown:
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
 
             // Ensure logic server connection is dead so no more audio arrives
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close(1000);
+            if (conversationalWS && conversationalWS.readyState === WebSocket.OPEN) {
+                conversationalWS.close(1000);
             }
             
             // Hard teardown of all audio contexts so microphone releases
             if (dgAudioCtx && dgAudioCtx.state !== 'closed') { dgAudioCtx.close().catch(() => {}); }
-            if (audioContext && audioContext.state !== 'closed') { audioContext.close().catch(() => {}); }
-
             callActive = false;
             // Lock out the interface entirely
             document.getElementById('startCallBtn').disabled = true;

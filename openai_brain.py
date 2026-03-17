@@ -12,7 +12,9 @@ import json
 import time
 import traceback
 import os
+import sys
 import subprocess
+import signal
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from datetime import datetime, timezone
@@ -72,7 +74,7 @@ class SystemBrain:
         self.component_status: Dict[str, Dict[str, Any]] = {
             "websocket_server":  {"status": "unknown", "last_update": None, "detail": ""},
             "deepgram_stt":      {"status": "unknown", "last_update": None, "detail": ""},
-            "deepgram_tts":      {"status": "unknown", "last_update": None, "detail": ""},
+            "sarvam_tts":        {"status": "unknown", "last_update": None, "detail": ""},
             "openai_llm":        {"status": "unknown", "last_update": None, "detail": ""},
             "question_gen":      {"status": "unknown", "last_update": None, "detail": ""},
             "scoring":           {"status": "unknown", "last_update": None, "detail": ""},
@@ -86,6 +88,10 @@ class SystemBrain:
         self.session_start = time.time()
         self._analysis_task: Optional[asyncio.Task] = None # type: ignore[type-arg]
         self.connectivity_status: Dict[str, bool] = {"internet": True, "openai": True, "deepgram": True}
+        
+        # Regulation Throttling
+        self.RESTART_COOLOFF = 300  # 5 minutes
+        self._last_restart_time = 0.0
 
     # ── Event ingestion ───────────────────────────────────────────────────────
     def record(self, component: str, event_type: str, detail: str, severity: str = "info"):
@@ -133,6 +139,14 @@ class SystemBrain:
         except RuntimeError:
             pass
 
+    def _get_component_summary(self) -> str:
+        summary = ""
+        for name, data in self.component_status.items():
+            last = data['last_update']
+            last_str = datetime.fromtimestamp(last, tz=timezone.utc).strftime("%H:%M:%S") if last else "NEVER"
+            summary += f"- {name}: status={data['status']}, last_update={last_str}, detail={data['detail']}\n"
+        return summary
+
     # ── GPT Analysis ──────────────────────────────────────────────────────────
     async def _maybe_analyse_now(self):
         """Trigger an immediate GPT review when an error is detected."""
@@ -144,7 +158,8 @@ class SystemBrain:
             return
         await self._run_gpt_analysis("error_triggered")
 
-    async def _run_gpt_analysis(self, trigger: str = "periodic"):
+    async def _run_gpt_analysis(self, trigger_type: str = "periodic"):
+        """Call GPT-4o to analyze the system state."""
         if self.analysis_in_progress or not OPENAI_KEY or not _HTTPX_AVAILABLE:
             return
         self.analysis_in_progress = True
@@ -155,6 +170,7 @@ class SystemBrain:
             start_idx = max(0, len(all_events) - MAX_ANALYSIS_BACKLOG)
             recent = all_events[start_idx:]
             if not recent:
+                self.analysis_in_progress = False
                 return
 
             error_events = [e for e in recent if e["severity"] == "error"]
@@ -164,21 +180,15 @@ class SystemBrain:
             await self._check_external_services()
             conn_report = ", ".join([f"{k}={'UP' if v else 'DOWN'}" for k, v in self.connectivity_status.items()])
 
-            events_text = "\n".join(
-                f"[{e['ts_str']}] [{e['severity'].upper()}] {e['component']}.{e['type']}: {e['detail']}"
-                for e in recent
-            )
-
-            component_summary = "\n".join(
-                f"  {k}: {v['status']} — {v['detail']}"
-                for k, v in self.component_status.items()
-            )
+            component_summary = self._get_component_summary()
+            recent_events_text = "\n".join([f"[{e['ts_str']}] [{e['component']}] {e['type']}: {e['detail']}" 
+                                  for e in recent[-15:]])
 
             prompt = f"""You are the AI Operations Brain for a real-time voice HR interview system.
 The system has the following components:
 - websocket_server  : Python WebSocket server on port 3002
 - deepgram_stt      : Real-time speech-to-text streaming
-- deepgram_tts      : Text-to-speech audio generation
+- sarvam_tts        : Text-to-speech audio generation (bulbul:v2)
 - openai_llm        : GPT-4o conversational AI for interview questions
 - question_gen      : GPT-4o question generation from job description
 - scoring           : GPT-4o/mini scoring of candidate answers
@@ -189,9 +199,10 @@ CONNECTIVITY REPORT:
 
 CURRENT COMPONENT STATUS:
 {component_summary}
+(Note: "unknown" means the component has not been used yet in this session. This is NORMAL and NOT an error.)
 
-RECENT EVENTS (last {len(recent)}, triggered by: {trigger}):
-{events_text}
+RECENT EVENTS (triggered by: {trigger_type}):
+{recent_events_text}
 
 ERRORS detected: {len(error_events)}
 WARNINGS detected: {len(warn_events)}
@@ -199,9 +210,8 @@ WARNINGS detected: {len(warn_events)}
 Your task:
 1. Identify what went wrong.
 2. Assess severity: "ok" | "degraded" | "critical".
-3. List 'auto_recovery' actions. These must be strings like "RESTART_WS", "FLUSH_BUFFERS", "LOG_DEBUG".
-4. List 'operator_actions' (human steps).
-5. Health summary (1-2 sentences).
+3. List 'auto_recovery' actions. Use "RESTART_WS" (sparingly), "FLUSH_BUFFERS", "LOG_DEBUG".
+4. Health summary (1-2 sentences).
 
 Respond ONLY with valid JSON:
 {{
@@ -210,7 +220,7 @@ Respond ONLY with valid JSON:
   "auto_recovery": ["RESTART_WS", "FLUSH_BUFFERS", ...],
   "operator_actions": ["check internet", ...],
   "health_summary": "System is fine.",
-  "affected_components": ["deepgram_stt"]
+  "affected_components": ["sarvam_tts"]
 }}"""
 
             async with httpx.AsyncClient() as client:
@@ -236,7 +246,7 @@ Respond ONLY with valid JSON:
                 action_record = {
                     "ts": time.time(),
                     "ts_str": datetime.now(timezone.utc).strftime("%H:%M:%S"),
-                    "trigger": trigger,
+                    "trigger": trigger_type,
                     "analysis": analysis,
                 }
                 self.recovery_actions.append(action_record)
@@ -261,12 +271,26 @@ Respond ONLY with valid JSON:
         for action in actions:
             self.record("websocket_server", "regulation", f"Executing recovery: {action}", "info")
             if action == "RESTART_WS":
-                # In a real system, we'd use a supervisor. 
-                # Here we just log it and maybe kill some hung processes if we had the logic.
-                _log("Active Regulation: RESTART_WS requested but not fully implemented as direct kill for safety.")
+                current_time = time.time()
+                if current_time - self._last_restart_time < self.RESTART_COOLOFF:
+                    _log(f"Active Regulation: RESTART_WS suppressed (cooloff active).")
+                    self.record("websocket_server", "regulation", "Restart suppressed (cooloff)", "info")
+                    continue
+                
+                self._last_restart_time = current_time
+                _log("Active Regulation: RESTART_WS requested. Restarting current process...")
+                # Give a small delay for logs to flush
+                await asyncio.sleep(1)
+                os.execv(sys.executable, [sys.executable] + sys.argv)
             elif action == "FLUSH_BUFFERS":
-                 _log("Active Regulation: Buffers flushed.")
-            # Add more triggers here
+                 self.events.clear()
+                 _log("Active Regulation: Event buffers flushed.")
+                 self.record("websocket_server", "regulation", "Buffers flushed", "ok")
+            elif action == "LOG_DEBUG":
+                # Create a snapshot file for debugging
+                debug_file = Path(__file__).parent / f"debug_snapshot_{int(time.time())}.json"
+                debug_file.write_text(json.dumps(self.snapshot(), indent=2))
+                _log(f"Active Regulation: Debug snapshot saved to {debug_file.name}")
 
     async def start_periodic_analysis(self):
         _log(f"Brain watchdog started (interval={ANALYSIS_INTERVAL}s)")
@@ -320,8 +344,7 @@ Respond ONLY with valid JSON:
                 self.connectivity_status["openai"] = False
 
             try:
-                # Deepgram check (requires key to be valid, but we just check accessibility)
-                # Actually, /v1/projects is fine to check if API is alive
+                # Deepgram check
                 r = await client.get("https://api.deepgram.com/v1/projects")
                 self.connectivity_status["deepgram"] = (r.status_code != 503)
             except:
@@ -345,6 +368,4 @@ async def brain_ws_handler(websocket):
     finally:
         if websocket in brain.subscribers:
             brain.subscribers.remove(websocket)
-        _log("Brain disconnected")
-
         _log("Brain disconnected")

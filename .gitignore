@@ -6,6 +6,9 @@
 ws_server.log
 brain.log
 
+# Debug snapshots
+debug_snapshot_*.json
+
 # Python cache
 __pycache__/
 *.pyc

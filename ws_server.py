@@ -48,46 +48,66 @@ httpx_client = httpx.AsyncClient(timeout=30.0)
 
 async def warmup_dns():
     try:
-        await httpx_client.head("https://api.deepgram.com", timeout=5.0)
-        log("Deepgram DNS warmed up")
-        brain.record("deepgram_tts", "dns_warmup", "DNS warmed up successfully", "ok")
+        await httpx_client.head("https://api.sarvam.ai/text-to-speech", timeout=5.0)
+        log("Sarvam DNS warmed up")
+        brain.record("sarvam_tts", "dns_warmup", "DNS warmed up successfully", "ok")
     except Exception as e:
         log(f"DNS warmup failed: {e}")
-        brain.record("deepgram_tts", "dns_warmup", f"DNS warmup failed: {e}", "warn")
+        brain.record("sarvam_tts", "dns_warmup", f"DNS warmup failed: {e}", "warn")
 
-# ── Deepgram TTS ──────────────────────────────────────────────────────────────
-async def deepgram_tts(text_segment: str, ws) -> None:
-    if not DEEPGRAM_KEY or not text_segment.strip():
+# ── Sarvam TTS ────────────────────────────────────────────────────────────────
+async def sarvam_tts(text_segment: str, ws) -> None:
+    if not SARVAM_KEY or not text_segment.strip():
         return
 
     for attempt in range(1, 4):
         try:
-            url = "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=mp3"
+            url = "https://api.sarvam.ai/text-to-speech"
+            payload = {
+                "inputs": [text_segment.strip()],
+                "target_language_code": "en-IN",
+                "speaker": "anushka",
+                "model": "bulbul:v2",
+                "audio_format": "mp3",
+                "pace": 0.95,
+                "pitch": 0,
+                "loudness": 1.4,
+                "enable_preprocessing": True
+            }
             resp = await httpx_client.post(
                 url,
                 headers={
-                    "Authorization": f"Token {DEEPGRAM_KEY}",
+                    "api-subscription-key": SARVAM_KEY,
                     "Content-Type": "application/json",
                 },
-                json={"text": text_segment.strip()},
+                json=payload,
             )
 
             if resp.status_code != 200:
                 err_msg = f"HTTP {resp.status_code} — {resp.text[:120]}"
-                log(f"Deepgram TTS error: {err_msg}")
-                brain.record("deepgram_tts", "tts_request", err_msg, "error")
+                log(f"Sarvam TTS error: {err_msg}")
+                brain.record("sarvam_tts", "tts_request", err_msg, "error")
                 return
 
-            audio_bytes = resp.content
-            # Send binary audio directly
-            await ws.send(audio_bytes)
-            brain.record("deepgram_tts", "tts_request",
-                         f"Sent {len(audio_bytes)} bytes for segment", "ok")
-            return  # success
+            data = resp.json()
+            if "audios" in data and data["audios"]:
+                # Sarvam returns a list of base64 strings
+                audio_base64 = data["audios"][0]
+                audio_bytes = base64.b64decode(audio_base64)
+                
+                # Send binary audio directly
+                await ws.send(audio_bytes)
+                brain.record("sarvam_tts", "tts_request",
+                             f"Sent {len(audio_bytes)} bytes for segment", "ok")
+                return  # success
+            else:
+                log(f"Sarvam TTS returned no audios: {data}")
+                brain.record("sarvam_tts", "tts_request", "No audios in response", "error")
+                return
 
         except Exception as e:
-            log(f"Deepgram TTS attempt {attempt} failed: {e}")
-            brain.record("deepgram_tts", "tts_request",
+            log(f"Sarvam TTS attempt {attempt} failed: {e}")
+            brain.record("sarvam_tts", "tts_request",
                          f"Attempt {attempt} failed: {e}", "error" if attempt == 3 else "warn")
             await asyncio.sleep(0.5)
 
@@ -106,6 +126,7 @@ If END: Say goodbye and append "[[END_INTERVIEW]]".
 Else: Acknowledge briefly and move to: "{next_q_prompt}".
 Output RAW TEXT only. No JSON."""
 
+    buffer = ""
     try:
         async with httpx.AsyncClient() as client:
             async with client.stream(
@@ -131,7 +152,6 @@ Output RAW TEXT only. No JSON."""
                     await ws.send(json.dumps({"type": "error", "msg": err}))
                     return
 
-                buffer = ""
                 async for line in response.aiter_lines():
                     if line.startswith("data: ") and line.strip() != "data: [DONE]":
                         try:
@@ -144,12 +164,13 @@ Output RAW TEXT only. No JSON."""
                                     sentence = buffer.strip()
                                     buffer = ""
                                     if sentence:
-                                        await deepgram_tts(sentence, ws)
-                        except:
+                                        await sarvam_tts(sentence, ws)
+                        except Exception as e:
+                            log(f"Token parsing error: {e}")
                             continue
 
                 if buffer.strip():
-                    await deepgram_tts(buffer.strip(), ws)
+                    await sarvam_tts(buffer.strip(), ws)
 
                 brain.record("openai_llm", "stream_complete", "Streaming finished", "ok")
 
@@ -166,10 +187,10 @@ async def deepgram_proxy(ws_frontend, sample_rate=16000):
         brain.record("deepgram_stt", "config_error", "Key missing", "error")
         return
 
-    # Using extra_headers for older websockets versions, or additional_headers for newer.
-    # We found version 10.4 uses extra_headers.
+    # Using extra_headers as a list of tuples for better compatibility
+    headers = [("Authorization", f"Token {DEEPGRAM_KEY}")]
     try:
-        async with websockets.connect(dg_url, extra_headers={"Authorization": f"Token {DEEPGRAM_KEY}"}) as ws_dg:
+        async with websockets.connect(dg_url, extra_headers=headers) as ws_dg:
             brain.record("deepgram_stt", "connected", "Connected to Deepgram", "ok")
 
             async def forward():
@@ -203,16 +224,17 @@ async def handler(websocket):
                     await websocket.send(json.dumps({"type": "done"}))
                 elif action == "stt":
                     await deepgram_proxy(websocket, data.get("sample_rate", 16000))
-            except:
+            except Exception as e:
+                log(f"Handler error: {e}")
                 continue
-    except:
-        pass
+    except Exception as e:
+        log(f"Root handler error: {e}")
     finally:
         brain.record("frontend_ws", "client_disconnect", "Session ended", "info")
 
 async def main():
     log("Logic server running on ws://127.0.0.1:3002")
-    brain.record("websocket_server", "startup", f"OpenAI={OPENAI_KEY[:4]}... Deepgram={DEEPGRAM_KEY[:4]}...", "ok")
+    brain.record("websocket_server", "startup", f"OpenAI={OPENAI_KEY[:4]}... Deepgram={DEEPGRAM_KEY[:4]}... Sarvam={SARVAM_KEY[:4]}...", "ok")
     asyncio.create_task(warmup_dns())
     if BRAIN_ENABLED:
         brain.record("websocket_server", "listen", "Server started on ws://127.0.0.1:3002", "ok")

@@ -2285,6 +2285,11 @@
         async function demoGenerateQuestions() {
             if (!requireKeys('openai')) return;
 
+            const jd = document.getElementById('jdText').value.trim();
+            const title = document.getElementById('jdTitle').value.trim() || 'Software Engineer';
+            const exp = document.getElementById('jdExp').value;
+            const numQ = parseInt(document.getElementById('numQ').value) || 6;
+
             const btn = document.getElementById('genQBtn');
             const btnTxt = document.getElementById('genQBtnText');
             const status = document.getElementById('genQStatus');
@@ -2293,11 +2298,6 @@
             btnTxt.innerHTML = '<span class="spin"></span> Calling GPT-4o...';
             status.textContent = 'sending request...';
             brainRecord('question_gen', 'start', `Title: ${title}, NumQ: ${numQ}`, 'info');
-
-            const jd = document.getElementById('jdText').value.trim();
-            const title = document.getElementById('jdTitle').value.trim() || 'Software Engineer';
-            const exp = document.getElementById('jdExp').value;
-            const numQ = parseInt(document.getElementById('numQ').value) || 6;
 
             const systemPrompt = `You are an expert HR interviewer specialising in tech hiring.
 Your task is to generate interview questions from a job description.
@@ -2822,8 +2822,10 @@ Output ONLY valid JSON, no markdown:
                         }
                     } else if (data.type === "error") {
                         console.error("WebSocket Stream Error:", data.msg);
+                        showToast(`❌ logic server error: ${data.msg}`, 'rose');
                         ws.onmessage = null;
-                        resolve({ response: nextQObjOrInstruction, action: "next" });
+                        // Instead of auto-skipping, we reject or resolve with 'error'
+                        resolve({ response: "I'm sorry, I encountered an error. Could you repeat that?", action: "repeat" });
                     }
                 };
 
@@ -2860,9 +2862,10 @@ Output ONLY valid JSON, no markdown:
                 
                 ws.onerror = (err) => {
                     console.error("WebSocket connection error:", err);
-                    showToast('Logic server connection failed. Is it running?', 'rose');
+                    showToast('Logic server connection failed. Retrying interview turn...', 'rose');
                     ws.onmessage = null;
-                    resolve({ response: nextQObjOrInstruction, action: "next" });
+                    // Resolve with repeat to stay on current question
+                    resolve({ response: "Connection issue. Let me try again.", action: "repeat" });
                 };
             });
         }
@@ -3540,7 +3543,7 @@ Output ONLY valid JSON, no markdown:
             const comp = data.component_status || {};
             const icons = {
                 websocket_server: '🖥️', deepgram_stt: '🎙',
-                deepgram_tts: '🔊', openai_llm: '🤖',
+                sarvam_tts: '🔊', openai_llm: '🤖',
                 question_gen: '❓', scoring: '📊', frontend_ws: '🌐',
             };
             const grid = document.getElementById('brain-components');

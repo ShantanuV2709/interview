@@ -126,8 +126,11 @@ Identify the user's intent and respond accordingly:
 3. ELABORATE: If the user asks to elaborate, explain, or clarify the question, provide a helpful explanation without giving away the answer. Append exactly ONE "[[REPEAT]]" tag at the very end.
 4. CHEATING: If the user asks for the answer (e.g. "tell me the answer"), politely decline, state that you cannot provide the answer, encourage them, and ask if they'd like to attempt it or move on. Append exactly ONE "[[REPEAT]]" tag at the very end.
 5. RETRY: If the user says they want to try answering again, encourage them to go ahead and append exactly ONE "[[REPEAT]]" tag at the very end.
-6. PREVIOUS: If the user says the AI skipped a question, or they want to go back and answer the previous question, apologize for moving too fast and append exactly ONE "[[PREVIOUS]]" tag at the very end.
-7. ANSWERED: Otherwise, evaluate their answer briefly (1 short sentence) and move to: "{next_q_prompt}".
+6. PREVIOUS / JUMP ONLY ON ERROR: If the user says the AI skipped a question, or asks to go back/jump to a previous question (e.g., "go to question 3"):
+   - Allowed ONLY IF their previous answer was clearly missed by the system (e.g. they complain about a transcription failure or you see "[Transcription failed]"). If allowed, apologize and append exactly ONE "[[PREVIOUS]]" or "[[JUMP:X]]" tag (where X is the number).
+   - Denied if they are just trying to change an already submitted answer. Politely tell them that submitted answers cannot be changed and move to: "{next_q_prompt}".
+7. NO_AUDIO: If the user's answer is exactly "[Transcription failed]" or "[No speech detected]", or they didn't say anything, politely state that you didn't catch their response and ask them to repeat. Append exactly ONE "[[REPEAT]]" tag at the very end. Do NOT move to the next question.
+8. ANSWERED: Otherwise, evaluate their answer briefly (1 short sentence) and move to: "{next_q_prompt}".
 
 Speak naturally. Do not output multiple tags."""
 
@@ -169,7 +172,8 @@ Speak naturally. Do not output multiple tags."""
                                     sentence = buffer.strip()
                                     buffer = ""
                                     if sentence:
-                                        clean_sentence = sentence.replace("[[REPEAT]]", "").replace("[[END_INTERVIEW]]", "").replace("[[PREVIOUS]]", "").strip()
+                                        import re
+                                        clean_sentence = re.sub(r'\[\[.*?\]\]', '', sentence).strip()
                                         if clean_sentence:
                                             await sarvam_tts(clean_sentence, ws)
                         except Exception as e:
@@ -177,7 +181,8 @@ Speak naturally. Do not output multiple tags."""
                             continue
 
                 if buffer.strip():
-                    clean_buffer = buffer.strip().replace("[[REPEAT]]", "").replace("[[END_INTERVIEW]]", "").replace("[[PREVIOUS]]", "").strip()
+                    import re
+                    clean_buffer = re.sub(r'\[\[.*?\]\]', '', buffer.strip()).strip()
                     if clean_buffer:
                         await sarvam_tts(clean_buffer, ws)
 

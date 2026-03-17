@@ -2120,6 +2120,9 @@
         // ─────────────────────────────────────────────────────────────────────────────
         // STATE
         // ─────────────────────────────────────────────────────────────────────────────
+        const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const WS_BASE_URL = `${WS_PROTOCOL}//${window.location.hostname}:3002`;
+
         let sessionCost = { qgen: 0, tts: 0, stt: 0, score: 0 };
         let generatedQuestions = [];
         let storedTranscripts = [];
@@ -2427,7 +2430,7 @@ Output ONLY valid JSON, no markdown:
             // Pre-connect logic server for faster thinking turns
             if (!conversationalWS || conversationalWS.readyState !== WebSocket.OPEN) {
                 console.log('🔌 Pre-connecting to logic server...');
-                conversationalWS = new WebSocket(`ws://${window.location.hostname}:3002`);
+                conversationalWS = new WebSocket(WS_BASE_URL);
                 conversationalWS.binaryType = "arraybuffer";
             }
 
@@ -2864,7 +2867,7 @@ Output ONLY valid JSON, no markdown:
                     sendAsk();
                 } else {
                     console.log('🔌 Opening new logic server connection...');
-                    ws = new WebSocket(`ws://${window.location.hostname}:3002`);
+                    ws = new WebSocket(WS_BASE_URL);
                     ws.binaryType = "arraybuffer";
                     conversationalWS = ws;
                     ws.onopen = sendAsk;
@@ -3523,7 +3526,7 @@ Output ONLY valid JSON, no markdown:
         // ─────────────────────────────────────────────────────────────────────────────
         let brainWS = null;
         let brainReconnectTimer = null;
-        const BRAIN_WS_URL = `ws://${window.location.hostname}:3002/brain`;
+        const BRAIN_WS_URL = WS_BASE_URL + '/brain';
 
         const SEVERITY_STYLES = {
             ok:       { color: 'var(--teal)',  icon: '✅' },

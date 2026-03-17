@@ -1234,7 +1234,7 @@
                         <div class="pipe-node">
                             <div class="pipe-icon tts">🔊</div>
                             <div class="pipe-label">TTS Playback</div>
-                            <span class="pipe-model tag tag-amber">Deepgram Aura-2</span>
+                            <span class="pipe-model tag tag-amber">bulbul:v2</span>
                         </div>
                         <div class="pipe-arrow">→</div>
                         <div class="pipe-node">
@@ -1367,7 +1367,7 @@
                 <div id="tab-prompt-p2" class="tab-pane">
                     <div class="grid2">
                         <div>
-                            <div class="prompt-section-title">Deepgram TTS — Aura-2 Config</div>
+                            <div class="prompt-section-title">Sarvam TTS — bulbul:v2 Config</div>
                             <div class="prompt-block">
                                 <button class="prompt-copy" onclick="copyPrompt('tts')">Copy</button>
                                 <span class="instruction">Recommended TTS parameters for interview calls:</span>
@@ -1915,7 +1915,7 @@
                         <div class="card-title">Per-Component Breakdown</div>
                         <div class="cost-row"><span class="cost-label">GPT-4o — Question Generation</span><span
                                 class="cost-value" id="mCostQGen">$0.0000</span></div>
-                        <div class="cost-row"><span class="cost-label">Deepgram TTS — Aura-2</span><span
+                        <div class="cost-row"><span class="cost-label">Sarvam TTS — bulbul:v2</span><span
                                 class="cost-value" id="mCostTTS">$0.0000</span></div>
                         <div class="cost-row"><span class="cost-label">Deepgram STT — nova-2 ⚡</span><span
                                 class="cost-value" id="mCostSTT">$0.0000</span></div>
@@ -2479,12 +2479,22 @@ Output ONLY valid JSON, no markdown:
             console.log(`[LATENCY] Q${currentQIdx + 1} TTS Fetch started...`);
             try {
                 const chars = text.length;
-                const res = await fetch('/proxy/deepgram/v1/speak?model=aura-2-thalia-en&encoding=mp3', {
+                const res = await fetch('/proxy/sarvam/text-to-speech', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ text: text })
+                    body: JSON.stringify({
+                        inputs: [text],
+                        target_language_code: 'en-IN',
+                        speaker: 'anushka',
+                        model: 'bulbul:v2',
+                        audio_format: 'mp3',
+                        pace: 0.95,
+                        pitch: 0,
+                        loudness: 1.4,
+                        enable_preprocessing: true
+                    })
                 });
 
                 if (!res.ok) {
@@ -2495,16 +2505,17 @@ Output ONLY valid JSON, no markdown:
                     throw new Error(msg);
                 }
 
-                const audioBuffer = await res.arrayBuffer();
-                const fetchEnd = performance.now();
-                console.log(`[LATENCY] Q${currentQIdx + 1} TTS Fetch + Buffer: ${(fetchEnd - startFetch).toFixed(1)}ms`);
-
-                if (audioBuffer.byteLength < 100) {
+                const data = await res.json();
+                const audioB64 = data.audios?.[0];
+                
+                if (!audioB64) {
                     throw new Error("Received empty or corrupt audio buffer");
                 }
 
-                const audioB64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-                const cost = chars * 0.000030;
+                const fetchEnd = performance.now();
+                console.log(`[LATENCY] Q${currentQIdx + 1} TTS Fetch + Buffer: ${(fetchEnd - startFetch).toFixed(1)}ms`);
+
+                const cost = chars * 0.0000165;
                 ttsCharCount += chars;
                 trackCost('tts', cost);
                 updateInterviewCostDisplay();
@@ -2771,11 +2782,12 @@ Output ONLY valid JSON, no markdown:
                                 setWaveform(false);
                                 
                                 let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
-                                             (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200 ? "repeat" : "next");
+                                             (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                             (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
                                 
                                 setTimeout(() => {
                                     ws.onmessage = null; 
-                                    resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
+                                    resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
                                 }, 1000); // 1.0s safety delay to prevent recording agent tail echo
                             }
                         };
@@ -2784,7 +2796,12 @@ Output ONLY valid JSON, no markdown:
                     } catch (e) {
                          pendingChunks--;
                          console.error("Audio Decode Error:", e);
-                         if (isDone && pendingChunks === 0) resolve({ action: "next", response: fullResponse });
+                         if (isDone && pendingChunks === 0) {
+                             let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
+                                         (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
+                             resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
+                         }
                     }
                 }
                 
@@ -2797,7 +2814,7 @@ Output ONLY valid JSON, no markdown:
                     const data = JSON.parse(msg.data);
                     if (data.type === "token") {
                         fullResponse += data.text;
-                        const displayText = fullResponse.replace("[[END_INTERVIEW]]", "").replace(/\\n/g, '<br/>');
+                        const displayText = fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace(/\\n/g, '<br/>');
                         document.getElementById('currentQ').innerHTML = displayText;
                     } else if (data.type === "usage") {
                         if (data.openai) {
@@ -2813,11 +2830,12 @@ Output ONLY valid JSON, no markdown:
                             isPlaying = false;
                             setWaveform(false);
                             let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
-                                         (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200 ? "repeat" : "next");
+                                         (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
                             
                             setTimeout(() => {
                                 ws.onmessage = null; 
-                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
+                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
                             }, 1000); 
                         }
                     } else if (data.type === "error") {
@@ -2940,8 +2958,27 @@ Output ONLY valid JSON, no markdown:
                             generatedQuestions[currentQIdx+1].text
                         );
                         
+                        if (result.action === 'previous') {
+                            if (currentQIdx > 0) {
+                                currentQIdx--;
+                            }
+                            document.getElementById('currentQ').innerHTML = generatedQuestions[currentQIdx].text;
+                            
+                            // Re-speak the old question text since the LLM didn't have it
+                            const spoke = await speakQuestion(generatedQuestions[currentQIdx].text);
+                            if (!spoke) await new Promise(r => setTimeout(r, 1000));
+
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
+
                         if (result.action === 'repeat') {
                             generatedQuestions[currentQIdx].dynamicText = result.response;
+                            document.getElementById('currentQ').innerHTML = result.response;
+
                             document.getElementById('nextQBtn').disabled = false;
                             document.getElementById('callDot').className = 'status-dot live';
                             document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
@@ -2963,8 +3000,26 @@ Output ONLY valid JSON, no markdown:
                             "Thank the user for their time and say the interview is complete."
                         );
                         
+                        if (result.action === 'previous') {
+                            if (currentQIdx > 0) {
+                                currentQIdx--;
+                            }
+                            document.getElementById('currentQ').innerHTML = generatedQuestions[currentQIdx].text;
+                            
+                            const spoke = await speakQuestion(generatedQuestions[currentQIdx].text);
+                            if (!spoke) await new Promise(r => setTimeout(r, 1000));
+
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
+
                         if (result.action === 'repeat') {
                             generatedQuestions[currentQIdx].dynamicText = result.response;
+                            document.getElementById('currentQ').innerHTML = result.response;
+
                             document.getElementById('nextQBtn').disabled = false;
                             document.getElementById('callDot').className = 'status-dot live';
                             document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
@@ -3055,6 +3110,8 @@ Output ONLY valid JSON, no markdown:
             }
 
             let transcript = '';
+            const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
+
             try {
                 document.getElementById('callStatusText').textContent = 'Converting audio to WAV...';
 
@@ -3129,30 +3186,40 @@ Output ONLY valid JSON, no markdown:
 
         function storeTranscript(qIdx, question, answer) {
             const finalAnswer = answer && answer.trim() ? answer.trim() : '[No speech detected]';
-            storedTranscripts[qIdx] = { question, answer: finalAnswer };
+            
+            if (!storedTranscripts[qIdx]) {
+                storedTranscripts[qIdx] = [];
+            }
+            storedTranscripts[qIdx].push({ question, answer: finalAnswer });
+            
+            const retryCount = storedTranscripts[qIdx].length;
+            const uid = `transcript-item-${qIdx}-${retryCount}`;
             
             const store = document.getElementById('transcriptStore');
-            let div = document.getElementById(`transcript-item-${qIdx}`);
+            const div = document.createElement('div');
+            div.id = uid;
+            div.style.marginBottom = '12px';
+            store.appendChild(div);
             
-            if (!div) {
-                div = document.createElement('div');
-                div.id = `transcript-item-${qIdx}`;
-                div.style.marginBottom = '12px';
-                store.appendChild(div);
-            }
+            const retryLabel = retryCount > 1 ? ` (Retry ${retryCount - 1})` : '';
             
             div.innerHTML = `
     <div class="q-item" style="border-left:3px solid var(--amber);border-radius:0 8px 8px 0;">
-      <div class="q-num" style="background:var(--amber-dim);color:var(--amber);">Q${qIdx + 1}</div>
+      <div class="q-num" style="background:var(--amber-dim);color:var(--amber);">Q${qIdx + 1}${retryLabel}</div>
       <div class="q-text" style="color:var(--amber);">${question}</div>
     </div>
     <div class="q-item" style="border-left:3px solid var(--rose);border-radius:0 8px 8px 0;margin-top:4px;">
-      <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">A${qIdx + 1}</div>
+      <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">A${qIdx + 1}${retryLabel}</div>
       <div class="q-text">${finalAnswer}</div>
     </div>
   `;
             store.scrollTop = store.scrollHeight;
-            document.getElementById('transcriptCount').textContent = Object.keys(storedTranscripts).filter(k => storedTranscripts[k]).length + ' pairs';
+            
+            let totalPairs = 0;
+            for (let key in storedTranscripts) {
+                totalPairs += storedTranscripts[key].length;
+            }
+            document.getElementById('transcriptCount').textContent = totalPairs + ' pairs';
         }
 
         function updateInterviewCostDisplay() {
@@ -3174,21 +3241,37 @@ Output ONLY valid JSON, no markdown:
 
         async function endInterview() {
             cleanupVAD();
-            // Stop any active recording
+            // Stop any active recording and kill media tracks completely
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(t => t.stop());
             }
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
 
+            // Ensure logic server connection is dead so no more audio arrives
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close(1000);
+            }
+            
+            // Hard teardown of all audio contexts so microphone releases
+            if (dgAudioCtx && dgAudioCtx.state !== 'closed') { dgAudioCtx.close().catch(() => {}); }
+            if (audioContext && audioContext.state !== 'closed') { audioContext.close().catch(() => {}); }
+
             callActive = false;
-            document.getElementById('startCallBtn').disabled = false;
+            // Lock out the interface entirely
+            document.getElementById('startCallBtn').disabled = true;
             document.getElementById('nextQBtn').disabled = true;
             document.getElementById('endCallBtn').disabled = true;
+            document.getElementById('startCallBtn').textContent = 'Interview Finished';
             document.getElementById('callDot').className = 'status-dot';
             document.getElementById('callStatusText').textContent = 'Interview complete — run scoring →';
             setWaveform(false);
             showToast('Interview ended. Head to Screen 3 to score the answers.', 'teal');
+            
+            // Auto-navigate to scoring tab after a brief delay
+            setTimeout(() => {
+                showSection('scoring');
+            }, 1000);
         }
 
         // ─────────────────────────────────────────────────────────────────────────────
@@ -3206,9 +3289,10 @@ Output ONLY valid JSON, no markdown:
             const btnTxt = document.getElementById('scoreBtnText');
             btn.disabled = true;
             btnTxt.innerHTML = '<span class="spin"></span> Evaluating...';
+            
+            const model = document.getElementById('scoringModel').value;
             brainRecord('scoring', 'start', `Model: ${model}, Pairs: ${validPairs.length}`, 'info');
 
-            const model = document.getElementById('scoringModel').value;
             const isMini = model === 'gpt-4o-mini';
             const title = document.getElementById('jdTitle')?.value || 'Software Engineer';
             const exp = document.getElementById('jdExp')?.value || 'Junior';

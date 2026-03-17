@@ -120,11 +120,16 @@ Previous Question: "{prev}"
 User's Answer/Reply: "{user_ans}"
 
 Your task:
-Identify if the user asked to repeat the question or end the interview.
-If REPEAT: Repeat the question.
-If END: Say goodbye and append "[[END_INTERVIEW]]".
-Else: Acknowledge briefly and move to: "{next_q_prompt}".
-Output RAW TEXT only. No JSON."""
+Identify the user's intent and respond accordingly:
+1. END: If the user asks to end or stop the interview, say goodbye and append exactly ONE "[[END_INTERVIEW]]" tag at the very end.
+2. REPEAT: If the user asks to repeat the question, acknowledge and repeat exactly. Append exactly ONE "[[REPEAT]]" tag at the very end.
+3. ELABORATE: If the user asks to elaborate, explain, or clarify the question, provide a helpful explanation without giving away the answer. Append exactly ONE "[[REPEAT]]" tag at the very end.
+4. CHEATING: If the user asks for the answer (e.g. "tell me the answer"), politely decline, state that you cannot provide the answer, encourage them, and ask if they'd like to attempt it or move on. Append exactly ONE "[[REPEAT]]" tag at the very end.
+5. RETRY: If the user says they want to try answering again, encourage them to go ahead and append exactly ONE "[[REPEAT]]" tag at the very end.
+6. PREVIOUS: If the user says the AI skipped a question, or they want to go back and answer the previous question, apologize for moving too fast and append exactly ONE "[[PREVIOUS]]" tag at the very end.
+7. ANSWERED: Otherwise, evaluate their answer briefly (1 short sentence) and move to: "{next_q_prompt}".
+
+Speak naturally. Do not output multiple tags."""
 
     buffer = ""
     try:
@@ -164,13 +169,17 @@ Output RAW TEXT only. No JSON."""
                                     sentence = buffer.strip()
                                     buffer = ""
                                     if sentence:
-                                        await sarvam_tts(sentence, ws)
+                                        clean_sentence = sentence.replace("[[REPEAT]]", "").replace("[[END_INTERVIEW]]", "").replace("[[PREVIOUS]]", "").strip()
+                                        if clean_sentence:
+                                            await sarvam_tts(clean_sentence, ws)
                         except Exception as e:
                             log(f"Token parsing error: {e}")
                             continue
 
                 if buffer.strip():
-                    await sarvam_tts(buffer.strip(), ws)
+                    clean_buffer = buffer.strip().replace("[[REPEAT]]", "").replace("[[END_INTERVIEW]]", "").replace("[[PREVIOUS]]", "").strip()
+                    if clean_buffer:
+                        await sarvam_tts(clean_buffer, ws)
 
                 brain.record("openai_llm", "stream_complete", "Streaming finished", "ok")
 
@@ -187,10 +196,10 @@ async def deepgram_proxy(ws_frontend, sample_rate=16000):
         brain.record("deepgram_stt", "config_error", "Key missing", "error")
         return
 
-    # Using extra_headers as a list of tuples for better compatibility
+    # Using additional_headers as a list of tuples for better compatibility
     headers = [("Authorization", f"Token {DEEPGRAM_KEY}")]
     try:
-        async with websockets.connect(dg_url, extra_headers=headers) as ws_dg:
+        async with websockets.connect(dg_url, additional_headers=headers) as ws_dg:
             brain.record("deepgram_stt", "connected", "Connected to Deepgram", "ok")
 
             async def forward():

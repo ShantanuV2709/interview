@@ -1,18 +1,24 @@
 FROM python:3.12-slim
 
-# Set the working directory
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy requirements and install dependencies
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
-# Expose the ports
-EXPOSE 3000
-EXPOSE 3002
+# Ensure the startup script is executable
+RUN chmod +x run.sh
 
-# Run the startup script
+# Port 3000: HTTP Proxy (start.py)
+# Port 3002: WebSocket Logic Server (ws_server.py)
+EXPOSE 3000 3002
+
 CMD ["./run.sh"]

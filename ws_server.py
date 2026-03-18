@@ -4,6 +4,8 @@ import json
 import httpx
 import base64
 import sys
+import re
+from typing import cast, Dict, Any, List, Optional
 from pathlib import Path
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -40,6 +42,7 @@ except ImportError as e:
     # Stub so code below still works even without the brain module
     class _BrainStub:
         def record(self, *a, **kw): pass
+        async def start_periodic_analysis(self): pass
     brain = _BrainStub()
     async def brain_ws_handler(ws): pass
 
@@ -112,7 +115,7 @@ async def sarvam_tts(text_segment: str, ws) -> None:
             await asyncio.sleep(0.5)
 
 # ── OpenAI Streaming ──────────────────────────────────────────────────────────
-async def openai_stream(prev, user_ans, next_q_prompt, ws):
+async def openai_stream(prev: str, user_ans: str, next_q_prompt: str, ws) -> None:
     brain.record("openai_llm", "stream_start", f"prev_len={len(prev)} ans_len={len(user_ans)}", "info")
 
     prompt = f"""You are a conversational tech interviewer.
@@ -134,7 +137,7 @@ Identify the user's intent and respond accordingly:
 
 Speak naturally. Do not output multiple tags."""
 
-    buffer = ""
+    buffer_list: List[str] = []
     try:
         async with httpx.AsyncClient() as client:
             async with client.stream(
@@ -163,16 +166,19 @@ Speak naturally. Do not output multiple tags."""
                 async for line in response.aiter_lines():
                     if line.startswith("data: ") and line.strip() != "data: [DONE]":
                         try:
-                            data = json.loads(line[6:])
-                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            line_data = json.loads(line[6:])
+                            choices = line_data.get("choices", [])
+                            if not choices:
+                                continue
+                            delta = choices[0].get("delta", {})
+                            content = str(delta.get("content", ""))
                             if content:
-                                buffer += content
+                                buffer_list.append(content)
                                 await ws.send(json.dumps({"type": "token", "text": content}))
                                 if any(p in content for p in [".", "?", "!", "\n"]):
-                                    sentence = buffer.strip()
-                                    buffer = ""
+                                    sentence = "".join(buffer_list).strip()
+                                    buffer_list = []
                                     if sentence:
-                                        import re
                                         clean_sentence = re.sub(r'\[\[.*?\]\]', '', sentence).strip()
                                         if clean_sentence:
                                             await sarvam_tts(clean_sentence, ws)
@@ -180,9 +186,9 @@ Speak naturally. Do not output multiple tags."""
                             log(f"Token parsing error: {e}")
                             continue
 
-                if buffer.strip():
-                    import re
-                    clean_buffer = re.sub(r'\[\[.*?\]\]', '', buffer.strip()).strip()
+                final_text = "".join(buffer_list).strip()
+                if final_text:
+                    clean_buffer = re.sub(r'\[\[.*?\]\]', '', final_text).strip()
                     if clean_buffer:
                         await sarvam_tts(clean_buffer, ws)
 
@@ -248,7 +254,7 @@ async def handler(websocket):
 
 async def main():
     log("Logic server running on ws://127.0.0.1:3002")
-    brain.record("websocket_server", "startup", f"OpenAI={OPENAI_KEY[:4]}... Deepgram={DEEPGRAM_KEY[:4]}... Sarvam={SARVAM_KEY[:4]}...", "ok")
+    brain.record("websocket_server", "startup", f"OpenAI={str(OPENAI_KEY)[:4]}... Deepgram={str(DEEPGRAM_KEY)[:4]}... Sarvam={str(SARVAM_KEY)[:4]}...", "ok")
     asyncio.create_task(warmup_dns())
     if BRAIN_ENABLED:
         brain.record("websocket_server", "listen", "Server started on ws://127.0.0.1:3002", "ok")

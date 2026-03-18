@@ -1137,10 +1137,76 @@
             background: var(--border2);
             border-radius: 2px;
         }
+
+        /* ── Login Overlay ── */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        .login-title {
+            font-family: var(--serif);
+            font-size: 32px;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+
+        .login-error {
+            color: var(--rose);
+            font-size: 11px;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Login Overlay -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="logo-mark" style="justify-content: center; margin-bottom: 20px;">
+                <div class="logo-dot"></div>
+                <div class="logo-name">Sarvam AI</div>
+            </div>
+            <h1 class="login-title">Admin Access</h1>
+            <p class="login-subtitle">Please enter your credentials to continue</p>
+            
+            <div class="field" style="text-align: left;">
+                <label>Username</label>
+                <input type="text" id="login-user" placeholder="admin">
+            </div>
+            <div class="field" style="text-align: left;">
+                <label>Password</label>
+                <input type="password" id="login-pass" placeholder="••••••••">
+            </div>
+            
+            <button class="btn btn-teal" style="width: 100%; margin-top: 10px;" onclick="handleLogin()">Login to Dashboard</button>
+            <div id="login-error" class="login-error">Invalid credentials. Please try again.</div>
+        </div>
+    </div>
     <div class="shell">
 
         <!-- ── SIDEBAR ── -->
@@ -2091,6 +2157,41 @@
     </div>
 
     <script>
+        async function handleLogin() {
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const errorEl = document.getElementById('login-error');
+            
+            try {
+                const resp = await fetch('/admin-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    // Hidden until next refresh
+                    document.getElementById('login-overlay').style.display = 'none';
+                } else {
+                    errorEl.style.display = 'block';
+                    errorEl.textContent = data.message || 'Invalid credentials';
+                }
+            } catch (e) {
+                errorEl.style.display = 'block';
+                errorEl.textContent = 'Connection error. Is the server running?';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_token');
+            location.reload();
+        }
+
+        // Check login on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Overlay is visible by default (CSS)
+        });
         // ─────────────────────────────────────────────────────────────────────────────
         // HELPERS — get keys from sidebar inputs
         // ─────────────────────────────────────────────────────────────────────────────

@@ -137,12 +137,25 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         body   = self.rfile.read(length) if length else b""
         ctype  = str(self.headers.get("Content-Type", ""))
 
-        if self.path.startswith("/proxy/openai/"):
+        if self.path == "/admin-login":
+            try:
+                data = json.loads(body)
+                user = data.get("username")
+                pwd  = data.get("password")
+                if user == "idealtest" and pwd == "ideal@1234":
+                    # Hardcoded success
+                    self._respond(200, "application/json", b'{"status":"success","token":"admin-session-token"}')
+                else:
+                    self._respond(401, "application/json", b'{"status":"error","message":"Invalid credentials"}')
+            except Exception as e:
+                self._respond(400, "application/json", json.dumps({"error": str(e)}).encode())
+        
+        elif self.path.startswith("/proxy/openai/"):
             if not OPENAI_KEY:
                 self._respond(500, "application/json",
                     b'{"error":{"message":"OPENAI_API_KEY not set in .env"}}')
                 return
-            target = OPENAI_BASE + self.path[len("/proxy/openai"):]
+            target = OPENAI_BASE + str(self.path)[len("/proxy/openai"):]
             hdrs: dict[str, str] = {
                 "Content-Type":  ctype,
                 "Authorization": f"Bearer {OPENAI_KEY}",
@@ -155,7 +168,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self._respond(500, "application/json",
                     b'{"error":{"message":"SARVAM_AI_API not set in .env"}}')
                 return
-            target = SARVAM_BASE + self.path[len("/proxy/sarvam"):]
+            target = SARVAM_BASE + str(self.path)[len("/proxy/sarvam"):]
             hdrs = {
                 "api-subscription-key": SARVAM_KEY,
                 "User-Agent":           USER_AGENT,
@@ -163,7 +176,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             if ctype:
                 hdrs["Content-Type"] = ctype
             if "multipart" not in ctype and len(body) < 2000:
-                print(f"  DBG   {self.path}  {body.decode(errors='replace')[:300]}")
+                print(f"  DBG   {self.path}  {str(body.decode(errors='replace'))[:300]}")
             self._forward(target, body, hdrs)
 
         elif self.path.startswith("/proxy/deepgram/"):
@@ -171,7 +184,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self._respond(500, "application/json",
                     b'{"error":{"message":"DEEPGRAM_API_KEY not set in .env"}}')
                 return
-            target = DEEPGRAM_BASE + self.path[len("/proxy/deepgram"):]
+            target = DEEPGRAM_BASE + str(self.path)[len("/proxy/deepgram"):]
             hdrs = {
                 "Authorization": f"Token {DEEPGRAM_KEY}",
                 "User-Agent":    USER_AGENT,

@@ -168,7 +168,7 @@ class SystemBrain:
             # Gather recent events
             all_events = list(self.events)
             start_idx = max(0, len(all_events) - MAX_ANALYSIS_BACKLOG)
-            recent = all_events[start_idx:]
+            recent = [all_events[i] for i in range(start_idx, len(all_events))]
             if not recent:
                 self.analysis_in_progress = False
                 return
@@ -223,6 +223,8 @@ Respond ONLY with valid JSON:
   "affected_components": ["sarvam_tts"]
 }}"""
 
+            if not httpx:
+                return
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
                     "https://api.openai.com/v1/chat/completions",
@@ -313,21 +315,24 @@ Respond ONLY with valid JSON:
 
     def snapshot(self) -> dict:
         uptime = int(time.time() - self.session_start)
+        all_events_list = list(self.events)
         return {
             "uptime_sec": uptime,
             "total_events": self.total_events,
             "total_errors": self.total_errors,
-            "error_rate": float(round(float(self.total_errors) / max(1, self.total_events), 4)),
+            "error_rate": float(f"{(float(self.total_errors) / max(1, self.total_events)):.4f}"),
             "connectivity": self.connectivity_status,
             "component_status": self.component_status,
             "latest_analysis": self.recovery_actions[-1] if self.recovery_actions else None,
-            "recent_events": list(self.events)[max(0, len(self.events)-30):],
+            "recent_events": [all_events_list[i] for i in range(max(0, len(all_events_list)-30), len(all_events_list))],
         }
 
 
     async def _check_external_services(self):
         """Regulation Helper: Verify if external services are reachable."""
         if not _HTTPX_AVAILABLE: return
+        if not httpx:
+            return
         async with httpx.AsyncClient(timeout=3.0) as client:
             try:
                 # Internet check

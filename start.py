@@ -15,9 +15,12 @@ import httpx
 import json
 import sys
 import socketserver
+import http.cookies
 import threading
 from pathlib import Path
 from typing import Any
+import hashlib
+import time
 
 PORT      = 3000
 HTML_FILE = "sarvam_demo.html"
@@ -52,6 +55,13 @@ _ENV          = load_env()
 SARVAM_KEY    = _ENV.get("SARVAM_AI_API", "")
 OPENAI_KEY    = _ENV.get("OPENAI_API_KEY", "")
 DEEPGRAM_KEY  = _ENV.get("DEEPGRAM_API_KEY", "")
+STATIC_USERNAME = _ENV.get("STATIC_USERNAME", "admin")
+STATIC_PASSWORD = _ENV.get("STATIC_PASSWORD", "sarvam123")
+
+# Simple session store (in-memory, cleared on server restart)
+SESSIONS: dict[str, float] = {}
+SESSION_COOKIE_NAME = "session_id"
+SESSION_DURATION = 86400  # 24 hours
 
 # Persistent client to avoid repeated DNS/Handshake latency
 HTTP_CLIENT = httpx.Client(timeout=60.0, follow_redirects=True)
@@ -102,14 +112,36 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self.send_cors_headers()
         self.end_headers()
 
-    def _respond(self, code: int, ctype: str, body: bytes) -> None:
+    def _respond(self, code: int, ctype: str, body: bytes, headers: list[tuple[str, str]] | None = None) -> None:
         """Send a complete response without ever calling send_error."""
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_cors_headers()
+        if headers:
+            for k, v in headers:
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
+
+    def _is_authenticated(self) -> bool:
+        cookie_header = self.headers.get("Cookie")
+        if not cookie_header:
+            return False
+        
+        cookie = http.cookies.SimpleCookie(cookie_header)
+        session_id = cookie.get(SESSION_COOKIE_NAME)
+        if not session_id:
+            return False
+            
+        session_id_val = session_id.value
+        if session_id_val in SESSIONS:
+            # Check if session has expired
+            if time.time() - SESSIONS[session_id_val] < SESSION_DURATION:
+                return True
+            else:
+                SESSIONS.pop(session_id_val, None)
+        return False
 
     def do_GET(self) -> None:
         if self.path in ("/favicon.ico", "/robots.txt"):
@@ -117,11 +149,20 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if self.path == "/deepgram-key":
+            if not self._is_authenticated():
+                self._respond(401, "application/json", b'{"error":"Unauthorized"}')
+                return
             body = json.dumps({"key": DEEPGRAM_KEY}).encode()
             self._respond(200, "application/json", body)
             return
 
-        if self.path in ("/", f"/{HTML_FILE}"):
+        if self.path == f"/{HTML_FILE}" or self.path == "/":
+            if not self._is_authenticated():
+                self.send_response(302)
+                self.send_header("Location", "/login")
+                self.end_headers()
+                return
+
             html_path = Path(__file__).parent / HTML_FILE
             if not html_path.exists():
                 self._respond(404, "text/plain",
@@ -130,12 +171,47 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self._respond(200, "text/html; charset=utf-8", html_path.read_bytes())
             return
 
+        if self.path == "/login":
+            login_path = Path(__file__).parent / "login.html"
+            if not login_path.exists():
+                self._respond(404, "text/plain", b"login.html not found")
+                return
+            self._respond(200, "text/html; charset=utf-8", login_path.read_bytes())
+            return
+
         self._respond(404, "text/plain", b"Not found")
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body   = self.rfile.read(length) if length else b""
         ctype  = str(self.headers.get("Content-Type", ""))
+
+        if self.path == "/login":
+            try:
+                data = json.loads(body)
+                username = data.get("username")
+                password = data.get("password")
+                if username == STATIC_USERNAME and password == STATIC_PASSWORD:
+                    # Create a simple session ID
+                    session_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+                    SESSIONS[session_id] = time.time()
+                    
+                    cookie = http.cookies.SimpleCookie()
+                    cookie[SESSION_COOKIE_NAME] = session_id
+                    cookie[SESSION_COOKIE_NAME]["path"] = "/"
+                    cookie[SESSION_COOKIE_NAME]["httponly"] = True
+                    
+                    self._respond(200, "application/json", b'{"status":"ok"}', 
+                                 [("Set-Cookie", cookie.output(header="").strip())])
+                else:
+                    self._respond(401, "application/json", b'{"error":"Invalid password"}')
+            except Exception as e:
+                self._respond(400, "application/json", json.dumps({"error": str(e)}).encode())
+            return
+
+        if not self._is_authenticated():
+            self._respond(401, "application/json", b'{"error":"Unauthorized"}')
+            return
 
         if self.path.startswith("/proxy/openai/"):
             if not OPENAI_KEY:

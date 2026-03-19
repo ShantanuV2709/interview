@@ -322,7 +322,11 @@ Valid tags: `[[END_INTERVIEW]]` | `[[REPEAT]]` | `[[PREVIOUS]]` | `[[JUMP:X]]`
                 },
                 json={
                     "model": "gpt-4o",
-                    "messages": [{"role": "system", "content": prompt}],
+                    "messages": [
+                        {"role": "system", "content": prompt},
+                        {"role": "assistant", "content": prev if prev else "Intro phase start"},
+                        {"role": "user", "content": f"The candidate answered: '{user_ans if user_ans else '[No answer yet]'}'\n\nTransition from my previous turn, acknowledge the answer if appropriate, and then ask the following question or wrap up: {next_q_prompt}"}
+                    ],
                     "temperature": 0.7,
                     "stream": True,
                     "stream_options": {"include_usage": True},

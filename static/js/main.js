@@ -264,7 +264,7 @@ async function startRecording() {
             audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
         });
         audioChunks = [];
-        recordingStartTime = Date.now();
+        recordingStartTime = performance.now();
         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
         mediaRecorder = new MediaRecorder(stream, { mimeType });
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
@@ -342,14 +342,15 @@ async function nextQ() {
                 mediaRecorder.stop();
                 mediaRecorder.stream.getTracks().forEach(t => t.stop());
             });
-            const durationSec = (Date.now() - recordingStartTime) / 1000;
-            console.log(`[LATENCY] recorder stop took: ${(performance.now() - recordingStartTime) / 1000}s`);
+            const durationSec = (performance.now() - recordingStartTime) / 1000;
+            console.log(`[LATENCY] recorder stop took: ${(performance.now() - recordingStartTime).toFixed(2)}ms`);
             if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
                 dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
                 await new Promise(r => setTimeout(r, 100));
             }
             let transcript = liveTranscript;
             if (!transcript) transcript = await transcribeAnswer(durationSec);
+            console.log(`Transcript choice: "${transcript}"`);
             const answeredQ = currentQIdx === -1 ? "Introduction" : (generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text);
             storeTranscript(currentQIdx, answeredQ, transcript);
             

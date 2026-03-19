@@ -68,24 +68,54 @@ STATIC_PASSWORD=sarvam123
 
 ---
 
-## Part 3: Running the Application
+## Part 3: Running the Application Locally
 
-### The "All-in-One" Way
-Run the shell script:
-```bash
-chmod +x run.sh
-./run.sh
-```
+To run the full system, you need both the **Logic Server** (WebSockets) and the **HTTP Proxy Server** running simultaneously.
 
-### The Manual Way (Two Terminals)
-**Terminal 1 (Logic Server):**
-```bash
-python3 ws_server.py
-```
-**Terminal 2 (HTTP Proxy):**
-```bash
-python3 start.py
-```
+### Option A: The "All-in-One" Way (Fastest)
+The project includes a convenience script that launches both servers in the background and foreground respectively.
+
+1. **Open your terminal**.
+2. **Navigate to the project folder**:
+   ```bash
+   cd interview
+   ```
+3. **Make the script executable** (only needs to be done once):
+   ```bash
+   chmod +x run.sh
+   ```
+4. **Run the script**:
+   ```bash
+   ./run.sh
+   ```
+
+### Option B: The Manual Way (Best for Debugging)
+If you want to see the logs for each component separately, use two different terminal windows or tabs.
+
+#### 1. Start the Logic Server (WebSocket)
+This server handles the interview logic, LLM streaming, and audio processing.
+- **Open Terminal Window 1**.
+- **Run**:
+  ```bash
+  cd interview
+  python3 ws_server.py
+  ```
+- *You should see: `[LOG] Logic server running on ws://127.0.0.1:3002`*
+
+#### 2. Start the HTTP Proxy Server
+This server hosts the web interface and handles API routing.
+- **Open Terminal Window 2**.
+- **Run**:
+  ```bash
+  cd interview
+  python3 start.py
+  ```
+- *You should see a list of API keys being "SET ✓" and `http://localhost:3000 <-- open in browser`.*
+
+### 3. Access the Application
+1. Open your web browser (Chrome or Firefox recommended).
+2. Go to: **[http://localhost:3000](http://localhost:3000)**
+3. Log in using the credentials defined in your `.env` file (Default: `admin` / `sarvam123`).
 
 ---
 

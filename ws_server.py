@@ -314,6 +314,12 @@ For all other responses, treat as an answer attempt.
 Valid tags: `[[END_INTERVIEW]]` | `[[REPEAT]]` | `[[PREVIOUS]]` | `[[JUMP:X]]`
 """
 
+    messages = [
+        {"role": "system", "content": prompt},
+        *formatted_history[max(0, len(formatted_history)-10):],
+        {"role": "user", "content": f"The candidate just said: '{user_ans}'\n\nTransition from my previous turn, acknowledge if needed, and ask: {next_q_prompt}"}
+    ]
+
     buffer = ""
     try:
         async with httpx.AsyncClient() as client:
@@ -326,11 +332,7 @@ Valid tags: `[[END_INTERVIEW]]` | `[[REPEAT]]` | `[[PREVIOUS]]` | `[[JUMP:X]]`
                 },
                 json={
                     "model": "gpt-4o",
-                    "messages": [
-                        {"role": "system", "content": prompt},
-                        *formatted_history[max(0, len(formatted_history)-10):],
-                        {"role": "user", "content": f"The candidate just said: '{user_ans}'\n\nTransition from my previous turn, acknowledge if needed, and ask: {next_q_prompt}"}
-                    ],
+                    "messages": messages,
                     "temperature": 0.7,
                     "stream": True,
                     "stream_options": {"include_usage": True},

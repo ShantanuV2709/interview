@@ -60,7 +60,7 @@ async function speakQuestion(text) {
                 speaker: 'anushka',
                 model: 'bulbul:v2',
                 audio_format: 'mp3',
-                pace: 0.95,
+                pace: 1.0,
                 pitch: 0,
                 loudness: 1.4,
                 enable_preprocessing: true
@@ -170,7 +170,6 @@ async function transcribeAnswer(durationSec) {
     if (!audioChunks.length) return '';
 
     let transcript = '';
-    const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
 
     try {
         document.getElementById('callStatusText').textContent = 'Converting audio to WAV...';
@@ -197,12 +196,13 @@ async function transcribeAnswer(durationSec) {
         }
 
         const chunkSamples = STT_CHUNK_SEC * STT_SAMPLE_RATE;
-        const numChunks = Math.ceil(numSamples / chunkSamples);
+        const numSamplesTotal = numSamples;
+        const numChunks = Math.ceil(numSamplesTotal / chunkSamples);
         const transcripts = [];
 
         for (let i = 0; i < numChunks; i++) {
             const start = i * chunkSamples;
-            const end = Math.min(start + chunkSamples, numSamples);
+            const end = Math.min(start + chunkSamples, numSamplesTotal);
             const slice = int16.slice(start, end);
             const wavBlob = pcmToWavBlob(slice, STT_SAMPLE_RATE);
             const text = await sttRequest(wavBlob, i, numChunks);
@@ -220,20 +220,18 @@ async function transcribeAnswer(durationSec) {
 <span class="transcript-lang">en-IN · Deepgram nova-2</span>
 ${transcript}
 `;
-        storeTranscript(currentQIdx, answeredQ, transcript);
         document.getElementById('callStatusText').textContent =
             `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · ${numChunks} chunk${numChunks > 1 ? 's' : ''} · $${cost.toFixed(5)})`;
     } catch (err) {
         showToast(`STT error: ${err.message}`, 'rose');
         console.error('STT error:', err);
-        storeTranscript(currentQIdx, answeredQ, '[Transcription failed]');
         transcript = '[Transcription failed]';
     }
     setWaveform(false);
     return transcript;
 }
 
-async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction) {
+async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction, history = []) {
     document.getElementById('callStatusText').textContent = 'Thinking...';
     document.getElementById('currentQ').innerHTML = ''; 
     document.getElementById('callDot').className = 'status-dot speaking';

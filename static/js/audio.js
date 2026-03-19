@@ -333,7 +333,8 @@ async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction)
                 action: "ask",
                 prev: prevQ,
                 transcript: userAns,
-                nextQ: nextQObjOrInstruction
+                nextQ: nextQObjOrInstruction,
+                history: history
             }));
         };
 

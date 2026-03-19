@@ -355,12 +355,12 @@ async function nextQ() {
             storeTranscript(currentQIdx, answeredQ, transcript);
             
             if (currentQIdx === -1) {
-                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[0].text);
+                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[0].text, storedTranscripts);
                 if (res.action === 'end') { endInterview(); return; }
                 generatedQuestions[0].dynamicText = res.response;
                 lastAssistantResponse = res.response;
             } else if (currentQIdx + 1 < generatedQuestions.length) {
-                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[currentQIdx+1].text);
+                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[currentQIdx+1].text, storedTranscripts);
                 if (res.action === 'previous' && currentQIdx > 0) { currentQIdx--; loadQuestion(currentQIdx); return; }
                 if (res.action === 'repeat') { 
                     generatedQuestions[currentQIdx].dynamicText = res.response; 
@@ -371,7 +371,7 @@ async function nextQ() {
                 generatedQuestions[currentQIdx+1].dynamicText = res.response;
                 lastAssistantResponse = res.response;
             } else {
-                await generateConversationalNext(lastAssistantResponse, transcript, "Wrap up");
+                await generateConversationalNext(lastAssistantResponse, transcript, "Wrap up", storedTranscripts);
                 endInterview(); return;
             }
         }
@@ -380,24 +380,45 @@ async function nextQ() {
 }
 
 function storeTranscript(qIdx, question, answer) {
-    const finalAnswer = answer?.trim() || '[No speech detected]';
+    const finalAnswer = answer ? answer.trim() : "[No speech detected]";
+    
+    // Store in data structure for scoring
     if (!storedTranscripts[qIdx]) storedTranscripts[qIdx] = [];
     storedTranscripts[qIdx].push({ question, answer: finalAnswer });
-    const store = document.getElementById('transcriptStore'), div = document.createElement('div');
-    div.style.marginBottom = '12px';
-    div.innerHTML = `
-        <div class="q-item" style="border-left:3px solid var(--amber);border-radius:0 8px 8px 0;">
-            <div class="q-num" style="background:var(--amber-dim);color:var(--amber);">Q${qIdx + 1}</div>
-            <div class="q-text" style="color:var(--amber);">${question}</div>
-        </div>
-        <div class="q-item" style="border-left:3px solid var(--rose);border-radius:0 8px 8px 0;margin-top:4px;">
-            <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">A${qIdx + 1}</div>
-            <div class="q-text">${finalAnswer}</div>
-        </div>`;
-    store.appendChild(div);
+
+    // Update UI
+    const store = document.getElementById('transcriptStore');
+    let existingItem = document.querySelector(`.q-item[data-qidx="${qIdx}"]`);
+    
+    if (existingItem) {
+        const answerSpan = existingItem.querySelector('.a-text-content');
+        if (answerSpan && !answerSpan.textContent.includes(finalAnswer)) {
+            const retryDiv = document.createElement('div');
+            retryDiv.className = 'retry-text';
+            retryDiv.style = 'color: var(--accent); opacity: 0.6; font-size: 0.8em; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;';
+            retryDiv.textContent = `Retried: ${finalAnswer}`;
+            answerSpan.parentNode.appendChild(retryDiv);
+        }
+    } else {
+        const item = document.createElement('div');
+        item.className = 'q-item';
+        item.setAttribute('data-qidx', qIdx);
+        item.style = 'background: rgba(255,255,255,0.03); border-radius: 6px; padding: 12px; margin-bottom: 15px; border-left: 3px solid var(--accent);';
+        item.innerHTML = `
+            <div style="display: flex; gap: 15px;">
+                <div class="q-num" style="background: var(--accent); color: #000; font-weight: 800; font-size: 0.8em; padding: 2px 8px; border-radius: 4px; height: fit-content;">${qIdx === -1 ? "Intro" : "Q" + (qIdx + 1)}</div>
+                <div style="flex: 1;">
+                    <div style="color: var(--accent); font-weight: 500; margin-bottom: 8px; font-size: 0.95em; line-height: 1.4;">${question}</div>
+                    <div class="a-text-content" style="color: #fff; opacity: 0.8; font-size: 0.9em; padding: 10px; background: rgba(0,0,0,0.2); border-left: 2px solid #ff4b82; line-height: 1.5;">${finalAnswer}</div>
+                </div>
+            </div>
+        `;
+        store.appendChild(item);
+    }
+    
     store.scrollTop = store.scrollHeight;
     let total = 0; for (let k in storedTranscripts) total += storedTranscripts[k].length;
-    document.getElementById('transcriptCount').textContent = total + ' pairs';
+    document.getElementById('transcriptCount').textContent = `${total} segments`;
 }
 
 async function endInterview() {

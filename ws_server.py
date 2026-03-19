@@ -112,8 +112,20 @@ async def sarvam_tts(text_segment: str, ws) -> None:
             await asyncio.sleep(0.5)
 
 # ── OpenAI Streaming ──────────────────────────────────────────────────────────
-async def openai_stream(prev, user_ans, next_q_prompt, ws):
+async def openai_stream(prev, user_ans, next_q_prompt, ws, history=None):
     brain.record("openai_llm", "stream_start", f"prev_len={len(prev)} ans_len={len(user_ans)}", "info")
+
+    formatted_history = []
+    if history:
+        for turn_list in history:
+            if isinstance(turn_list, list) and turn_list:
+                q = turn_list[0].get("question", "")
+                a = turn_list[-1].get("answer", "")
+                formatted_history.append({"role": "assistant", "content": q})
+                formatted_history.append({"role": "user", "content": a})
+    else:
+        if prev: formatted_history.append({"role": "assistant", "content": prev})
+        if user_ans: formatted_history.append({"role": "user", "content": user_ans})
 
     prompt = f"""
 You are **Emma**, a professional and warmly approachable Technical Interviewer at **Ideal IT Techno**. 
@@ -156,14 +168,6 @@ Greet them warmly as Emma and ask for their name FIRST before anything else:
 Once they share their name:
 - Greet them personally: "Lovely to meet you, [Name]! Let's get started. I'll be asking you a series of technical questions. Take your time with each one — there's no rush. Ready? Let's go! 🚀"
 - Store and use their name naturally throughout the session.
-
-═══════════════════════════════════════════
-📋 INTERVIEW STATE CONTEXT
-═══════════════════════════════════════════
-
-Previous Question Asked: "{prev}"
-Candidate's Latest Response: "{user_ans}"
-Next Question to Ask: "{next_q_prompt}"
 
 ═══════════════════════════════════════════
 🎯 INTENT DETECTION & RESPONSES
@@ -324,8 +328,8 @@ Valid tags: `[[END_INTERVIEW]]` | `[[REPEAT]]` | `[[PREVIOUS]]` | `[[JUMP:X]]`
                     "model": "gpt-4o",
                     "messages": [
                         {"role": "system", "content": prompt},
-                        {"role": "assistant", "content": prev if prev else "Intro phase start"},
-                        {"role": "user", "content": f"The candidate answered: '{user_ans if user_ans else '[No answer yet]'}'\n\nTransition from my previous turn, acknowledge the answer if appropriate, and then ask the following question or wrap up: {next_q_prompt}"}
+                        *formatted_history[max(0, len(formatted_history)-10):],
+                        {"role": "user", "content": f"The candidate just said: '{user_ans}'\n\nTransition from my previous turn, acknowledge if needed, and ask: {next_q_prompt}"}
                     ],
                     "temperature": 0.7,
                     "stream": True,
@@ -414,7 +418,13 @@ async def handler(websocket):
                 data = json.loads(msg)
                 action = data.get("action")
                 if action == "ask":
-                    await openai_stream(data.get("prev", ""), data.get("transcript", ""), data.get("nextQ", ""), websocket)
+                    await openai_stream(
+                        data.get("prev", ""), 
+                        data.get("transcript", ""), 
+                        data.get("nextQ", ""), 
+                        websocket,
+                        history=data.get("history", [])
+                    )
                     await websocket.send(json.dumps({"type": "done"}))
                 elif action == "stt":
                     await deepgram_proxy(websocket, data.get("sample_rate", 16000))

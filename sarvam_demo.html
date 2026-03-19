@@ -2120,13 +2120,19 @@
         // ─────────────────────────────────────────────────────────────────────────────
         // STATE
         // ─────────────────────────────────────────────────────────────────────────────
-        const WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/brain/";
+        let WS_BASE_URL;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            WS_BASE_URL = "ws://" + window.location.hostname + ":3002/";
+        } else {
+            WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/brain/";
+        }
 
         let sessionCost = { qgen: 0, tts: 0, stt: 0, score: 0 };
         let generatedQuestions = [];
         let storedTranscripts = [];
         let currentQIdx = -1;
         let callActive = false;
+        let currentQHistory = [];
         let ttsCharCount = 0;
         let sttSecCount = 0;
         let mediaRecorder = null;
@@ -2412,9 +2418,14 @@ Output ONLY valid JSON, no markdown:
                 showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
             }
             
-            // Add introductory line for the first question
-            if (!generatedQuestions[0].dynamicText) {
-                generatedQuestions[0].dynamicText = "Hello, I am Emma from Ideal IT Techno. Let's get started. " + generatedQuestions[0].text;
+            // Inject Phase 0 (Name Collection) as the very first question
+            if (!generatedQuestions[0].isPhase0) {
+                generatedQuestions.unshift({
+                    isPhase0: true,
+                    text: "Hey, welcome to Ideal IT Techno! I'm Emma, and I'll be your interviewer today. Before we jump in — what's your name?",
+                    dynamicText: "Hey, welcome to Ideal IT Techno! I'm Emma, and I'll be your interviewer today. Before we jump in — what's your name?",
+                    category: "hr"
+                });
             }
 
             callActive = true; currentQIdx = 0;
@@ -2439,6 +2450,7 @@ Output ONLY valid JSON, no markdown:
         async function loadQuestion(idx) {
             if (idx >= generatedQuestions.length) { endInterview(); return; }
             currentQIdx = idx;
+            currentQHistory = [];
             const q = generatedQuestions[idx];
 
             document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
@@ -2459,6 +2471,7 @@ Output ONLY valid JSON, no markdown:
         async function loadQuestionNoSpeak(idx) {
             if (idx >= generatedQuestions.length) { endInterview(); return; }
             currentQIdx = idx;
+            currentQHistory = [];
             const q = generatedQuestions[idx];
             document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
             // The text is already shown and spoken by generateConversationalNext via websocket
@@ -2725,9 +2738,9 @@ Output ONLY valid JSON, no markdown:
                         console.log('🎤 VAD: Speech detected');
                         hasSpoken = true;
                     }
-                } else if (hasSpoken && (Date.now() - silenceStart > 3000)) { // 3s pause safe
-                    if (Date.now() - recordingStartTime > 3000) {
-                        console.log('🔇 VAD: Silence detected (3s), submitting...');
+                } else if (hasSpoken && (Date.now() - silenceStart > 2500)) { // 2.5s pause safe
+                    if (Date.now() - recordingStartTime > 2500) {
+                        console.log('🔇 VAD: Silence detected (2.5s), submitting...');
                         hasSpoken = false;
                         nextQ();
                     } else {
@@ -2954,11 +2967,21 @@ Output ONLY valid JSON, no markdown:
                         `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · $${cost.toFixed(5)}) · Deepgram ⚡`;
                     
                     if (currentQIdx + 1 < generatedQuestions.length) {
+                        let prevContext = generatedQuestions[currentQIdx].text;
+                        if (currentQHistory.length > 0) {
+                            prevContext = `Original Question: ${generatedQuestions[currentQIdx].text}\n` +
+                                          `Past Interaction:\n` + currentQHistory.join("\n");
+                        }
+                        
                         const result = await generateConversationalNext(
-                            generatedQuestions[currentQIdx].text, 
+                            prevContext, 
                             transcript, 
                             generatedQuestions[currentQIdx+1].text
                         );
+                        
+                        // Log this interaction so the LLM remembers it if we stay on this question
+                        currentQHistory.push(`Candidate: ${transcript}`);
+                        currentQHistory.push(`Interviewer: ${result.response}`);
                         
                         if (result.action === 'previous') {
                             if (currentQIdx > 0) {
@@ -2996,11 +3019,21 @@ Output ONLY valid JSON, no markdown:
                         generatedQuestions[currentQIdx+1].dynamicText = result.response;
                     } else {
                         document.getElementById('callStatusText').textContent = 'Generating wrap up...';
+                        
+                        let prevContext = generatedQuestions[currentQIdx].text;
+                        if (currentQHistory.length > 0) {
+                            prevContext = `Original Question: ${generatedQuestions[currentQIdx].text}\n` +
+                                          `Past Interaction:\n` + currentQHistory.join("\n");
+                        }
                         const result = await generateConversationalNext(
-                            generatedQuestions[currentQIdx].text,
+                            prevContext,
                             transcript,
                             "Thank the user for their time and say the interview is complete."
                         );
+                        
+                        // Log this interaction so the LLM remembers it if we stay on this question
+                        currentQHistory.push(`Candidate: ${transcript}`);
+                        currentQHistory.push(`Interviewer: ${result.response}`);
                         
                         if (result.action === 'previous') {
                             if (currentQIdx > 0) {
@@ -3053,56 +3086,7 @@ Output ONLY valid JSON, no markdown:
             }
         }
 
-        // Split decoded PCM into 25s chunks and send each to Sarvam sequentially
-        // Sarvam hard limit: 30s per request — we use 25s to be safe
-        const STT_CHUNK_SEC = 25;
-        const STT_SAMPLE_RATE = 16000;
-
-        function pcmToWavBlob(int16, sampleRate) {
-            const wavBuf = new ArrayBuffer(44 + int16.byteLength);
-            const view = new DataView(wavBuf);
-            const ws = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
-            ws(0, 'RIFF');
-            view.setUint32(4, 36 + int16.byteLength, true);
-            ws(8, 'WAVE');
-            ws(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);  // PCM
-            view.setUint16(22, 1, true);  // mono
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true);
-            view.setUint16(32, 2, true);
-            view.setUint16(34, 16, true);
-            ws(36, 'data');
-            view.setUint32(40, int16.byteLength, true);
-            new Int16Array(wavBuf, 44).set(int16);
-            return new Blob([wavBuf], { type: 'audio/wav' });
-        }
-
-        async function sttRequest(wavBlob, chunkIdx, total) {
-            if (total > 1) {
-                document.getElementById('callStatusText').textContent =
-                    `Transcribing chunk ${chunkIdx + 1}/${total}...`;
-            }
-
-            // Send raw WAV bytes to Deepgram — no FormData needed
-            const res = await fetch('/proxy/deepgram/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true', {
-                method: 'POST',
-                headers: { 'Content-Type': 'audio/wav' },
-                body: wavBlob
-            });
-
-            if (!res.ok) {
-                const raw = await res.text();
-                let msg = `STT HTTP ${res.status}`;
-                try { msg = JSON.parse(raw)?.err_msg || msg; } catch (_) { }
-                throw new Error(msg);
-            }
-
-            const data = await res.json();
-            // Deepgram response structure
-            return data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
-        }
+        // Legacy STT Chunking parameters removed since Deepgram handles long audio natively
 
         async function transcribeAnswer(durationSec) {
             console.log(`Fallback transcription started. AudioChunks length: ${audioChunks.length}`);
@@ -3115,48 +3099,26 @@ Output ONLY valid JSON, no markdown:
             const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
 
             try {
-                document.getElementById('callStatusText').textContent = 'Converting audio to WAV...';
+                document.getElementById('callStatusText').textContent = 'Transcribing with Deepgram...';
 
-                // Decode the raw browser recording into PCM
+                // Send raw Blob directly to Deepgram without chunking
                 const rawBlob = new Blob(audioChunks, { type: audioChunks[0]?.type || 'audio/webm' });
-                const arrayBuf = await rawBlob.arrayBuffer();
-                const audioCtx = new AudioContext({ sampleRate: STT_SAMPLE_RATE });
-                const decoded = await audioCtx.decodeAudioData(arrayBuf);
-                audioCtx.close();
 
-                // Mix down to mono Float32
-                const numSamples = decoded.length;
-                const pcm = new Float32Array(numSamples);
-                for (let c = 0; c < decoded.numberOfChannels; c++) {
-                    const ch = decoded.getChannelData(c);
-                    for (let i = 0; i < numSamples; i++) pcm[i] += ch[i];
-                }
-                if (decoded.numberOfChannels > 1) {
-                    for (let i = 0; i < numSamples; i++) pcm[i] /= decoded.numberOfChannels;
+                const res = await fetch('/proxy/deepgram/v1/listen?model=nova-2&language=en-IN&smart_format=true&punctuate=true', {
+                    method: 'POST',
+                    headers: { 'Content-Type': rawBlob.type },
+                    body: rawBlob
+                });
+
+                if (!res.ok) {
+                    const raw = await res.text();
+                    let msg = `STT HTTP ${res.status}`;
+                    try { msg = JSON.parse(raw)?.err_msg || msg; } catch (_) { }
+                    throw new Error(msg);
                 }
 
-                // Convert to Int16
-                const int16 = new Int16Array(numSamples);
-                for (let i = 0; i < numSamples; i++) {
-                    const s = Math.max(-1, Math.min(1, pcm[i]));
-                    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-
-                // Split into 25s chunks and transcribe each
-                const chunkSamples = STT_CHUNK_SEC * STT_SAMPLE_RATE;
-                const numChunks = Math.ceil(numSamples / chunkSamples);
-                const transcripts = [];
-
-                for (let i = 0; i < numChunks; i++) {
-                    const start = i * chunkSamples;
-                    const end = Math.min(start + chunkSamples, numSamples);
-                    const slice = int16.slice(start, end);
-                    const wavBlob = pcmToWavBlob(slice, STT_SAMPLE_RATE);
-                    const text = await sttRequest(wavBlob, i, numChunks);
-                    transcripts.push(text);
-                }
-
-                transcript = transcripts.join(' ').trim() || '[No transcript returned]';
+                const data = await res.json();
+                transcript = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '[No transcript returned]';
 
                 // Deepgram pricing: $0.0043/min = $0.0000716/sec
                 const cost = durationSec * 0.0000716;
@@ -3173,7 +3135,7 @@ Output ONLY valid JSON, no markdown:
                 const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
                 storeTranscript(currentQIdx, answeredQ, transcript);
                 document.getElementById('callStatusText').textContent =
-                    `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · ${numChunks} chunk${numChunks > 1 ? 's' : ''} · $${cost.toFixed(5)})`;
+                    `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s \u00B7 $${cost.toFixed(5)})`;
 
             } catch (err) {
                 showToast(`STT error: ${err.message}`, 'rose');
@@ -3297,10 +3259,13 @@ Output ONLY valid JSON, no markdown:
             const title = document.getElementById('jdTitle')?.value || 'Software Engineer';
             const exp = document.getElementById('jdExp')?.value || 'Junior';
 
-            // Build transcript string from real stored transcripts
+            // Build transcript string from real stored transcripts (selecting the final attempt for each question)
             const transcriptText = storedTranscripts
                 .filter(Boolean)
-                .map((pair, i) => `Q${i + 1} [${generatedQuestions[i]?.category || 'general'}]: ${pair.question}\nA${i + 1}: ${pair.answer}`)
+                .map((attempts, i) => {
+                    const finalAttempt = attempts[attempts.length - 1];
+                    return `Q${i + 1} [${generatedQuestions[i]?.category || 'general'}]: ${finalAttempt.question}\nA${i + 1}: ${finalAttempt.answer}`;
+                })
                 .join('\n---\n');
 
             const systemPrompt = `You are a senior HR evaluator for a tech company.

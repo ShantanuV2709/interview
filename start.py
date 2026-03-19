@@ -148,6 +148,25 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self._respond(204, "text/plain", b"")
             return
 
+        if self.path.startswith("/static/"):
+            static_path = Path(__file__).parent / self.path.lstrip("/")
+            if not static_path.exists() or not static_path.is_file():
+                self._respond(404, "text/plain", b"Static file not found")
+                return
+            
+            ext = static_path.suffix.lower()
+            mtypes = {
+                ".css": "text/css",
+                ".js": "application/javascript",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".svg": "image/svg+xml",
+                ".ico": "image/x-icon"
+            }
+            ctype = mtypes.get(ext, "application/octet-stream")
+            self._respond(200, ctype, static_path.read_bytes())
+            return
+
         if self.path == "/deepgram-key":
             if not self._is_authenticated():
                 self._respond(401, "application/json", b'{"error":"Unauthorized"}')

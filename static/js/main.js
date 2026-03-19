@@ -11,7 +11,7 @@ function requireKeys(...keys) {
 }
 
 // ── STATE ──
-const WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/brain/";
+const WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.hostname + ":3002/brain/";
 
 let sessionCost = { qgen: 0, tts: 0, stt: 0, score: 0 };
 let generatedQuestions = [];
@@ -205,9 +205,6 @@ function startInterview() {
     if (!generatedQuestions.length) {
         showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
     }
-    if (!generatedQuestions[0].dynamicText) {
-        generatedQuestions[0].dynamicText = "Hello, I am Emma from Ideal IT Techno. Let's get started. " + generatedQuestions[0].text;
-    }
     callActive = true; currentQIdx = 0;
     storedTranscripts = []; ttsCharCount = 0; sttSecCount = 0;
     document.getElementById('startCallBtn').disabled = true;
@@ -216,11 +213,13 @@ function startInterview() {
     document.getElementById('transcriptStore').innerHTML = '';
     document.getElementById('transcriptCount').textContent = '0 pairs';
 
-    if (!conversationalWS || conversationalWS.readyState !== WebSocket.OPEN) {
-        conversationalWS = new WebSocket(WS_BASE_URL);
-        conversationalWS.binaryType = "arraybuffer";
-    }
-    loadQuestion(0);
+    // Start by getting the conversational introduction/greeting from the backend
+    (async () => {
+        const res = await generateConversationalNext("", "", generatedQuestions[0].text);
+        if (res.action === 'end') { endInterview(); return; }
+        // Start recording so the candidate can provide their name
+        startRecordingForCurrent();
+    })();
 }
 
 async function loadQuestion(idx) {

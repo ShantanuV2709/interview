@@ -2120,8 +2120,7 @@
         // ─────────────────────────────────────────────────────────────────────────────
         // STATE
         // ─────────────────────────────────────────────────────────────────────────────
-        const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const WS_BASE_URL = `${WS_PROTOCOL}//${window.location.hostname}:3002`;
+        const WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/brain/";
 
         let sessionCost = { qgen: 0, tts: 0, stt: 0, score: 0 };
         let generatedQuestions = [];
@@ -2604,7 +2603,7 @@ Output ONLY valid JSON, no markdown:
                     return new Promise((resolve) => {
                         document.getElementById('callStatusText').textContent = 'Connecting to STT Proxy...';
                         
-                        dgSocket = new WebSocket(`ws://${window.location.hostname}:3002`);
+                        dgSocket = new WebSocket(WS_BASE_URL);
                         dgSocket.binaryType = 'arraybuffer';
 
                         const dgTimeout = setTimeout(() => {
@@ -3522,11 +3521,11 @@ Output ONLY valid JSON, no markdown:
             });
 
         // ─────────────────────────────────────────────────────────────────────────────
-        // OPENAI BRAIN DASHBOARD — WebSocket client to ws://127.0.0.1:3002/brain
+        // OPENAI BRAIN DASHBOARD — WebSocket client
         // ─────────────────────────────────────────────────────────────────────────────
         let brainWS = null;
         let brainReconnectTimer = null;
-        const BRAIN_WS_URL = WS_BASE_URL + '/brain';
+        const BRAIN_WS_URL = WS_BASE_URL + 'brain';
 
         const SEVERITY_STYLES = {
             ok:       { color: 'var(--teal)',  icon: '✅' },

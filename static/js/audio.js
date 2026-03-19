@@ -328,6 +328,7 @@ async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction)
         };
 
         const sendAsk = () => {
+            console.log(`[LATENCY] Thinking request (action: ask) sent at ${performance.now().toFixed(1)}ms`);
             ws.send(JSON.stringify({
                 action: "ask",
                 prev: prevQ,

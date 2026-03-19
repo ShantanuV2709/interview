@@ -24,6 +24,7 @@ let mediaRecorder = null;
 let audioChunks = [];
 let recordingStartTime = null;
 let currentAudio = null;
+let lastAssistantResponse = "";
 
 let vadAudioContext = null;
 let vadSource = null;
@@ -205,7 +206,7 @@ function startInterview() {
     if (!generatedQuestions.length) {
         showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
     }
-    callActive = true; currentQIdx = 0;
+    callActive = true; currentQIdx = -1;
     storedTranscripts = []; ttsCharCount = 0; sttSecCount = 0;
     document.getElementById('startCallBtn').disabled = true;
     document.getElementById('nextQBtn').disabled = false;
@@ -215,9 +216,9 @@ function startInterview() {
 
     // Start by getting the conversational introduction/greeting from the backend
     (async () => {
-        const res = await generateConversationalNext("", "", generatedQuestions[0].text);
+        const res = await generateConversationalNext("", "", "Begin interview with introduction and name collection.");
         if (res.action === 'end') { endInterview(); return; }
-        // Start recording so the candidate can provide their name
+        lastAssistantResponse = res.response;
         startRecordingForCurrent();
     })();
 }
@@ -226,7 +227,7 @@ async function loadQuestion(idx) {
     if (idx >= generatedQuestions.length) { endInterview(); return; }
     currentQIdx = idx;
     const q = generatedQuestions[idx];
-    document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
+    document.getElementById('qProgressTag').textContent = idx === -1 ? "Intro" : `Q ${idx + 1}/${generatedQuestions.length}`;
     const textToSpeak = q.dynamicText ? q.dynamicText : q.text;
     document.getElementById('currentQ').textContent = textToSpeak;
     document.getElementById('callDot').className = 'status-dot speaking';
@@ -332,7 +333,7 @@ async function startRecording() {
 async function nextQ() {
     if (isNavigating || !callActive) return;
     isNavigating = true;
-    showToast('⏳ Processing answer...', 'teal');
+    console.log(`--- nextQ triggered --- (currentQIdx: ${currentQIdx})`);
     try {
         cleanupVAD();
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -342,23 +343,34 @@ async function nextQ() {
                 mediaRecorder.stream.getTracks().forEach(t => t.stop());
             });
             const durationSec = (Date.now() - recordingStartTime) / 1000;
+            console.log(`[LATENCY] recorder stop took: ${(performance.now() - recordingStartTime) / 1000}s`);
             if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
                 dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
                 await new Promise(r => setTimeout(r, 100));
             }
             let transcript = liveTranscript;
             if (!transcript) transcript = await transcribeAnswer(durationSec);
-            const answeredQ = generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text;
+            const answeredQ = currentQIdx === -1 ? "Introduction" : (generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text);
             storeTranscript(currentQIdx, answeredQ, transcript);
             
-            if (currentQIdx + 1 < generatedQuestions.length) {
-                const res = await generateConversationalNext(generatedQuestions[currentQIdx].text, transcript, generatedQuestions[currentQIdx+1].text);
+            if (currentQIdx === -1) {
+                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[0].text);
+                if (res.action === 'end') { endInterview(); return; }
+                generatedQuestions[0].dynamicText = res.response;
+                lastAssistantResponse = res.response;
+            } else if (currentQIdx + 1 < generatedQuestions.length) {
+                const res = await generateConversationalNext(lastAssistantResponse, transcript, generatedQuestions[currentQIdx+1].text);
                 if (res.action === 'previous' && currentQIdx > 0) { currentQIdx--; loadQuestion(currentQIdx); return; }
-                if (res.action === 'repeat') { generatedQuestions[currentQIdx].dynamicText = res.response; loadQuestion(currentQIdx); return; }
+                if (res.action === 'repeat') { 
+                    generatedQuestions[currentQIdx].dynamicText = res.response; 
+                    lastAssistantResponse = res.response;
+                    loadQuestion(currentQIdx); return; 
+                }
                 if (res.action === 'end') { endInterview(); return; }
                 generatedQuestions[currentQIdx+1].dynamicText = res.response;
+                lastAssistantResponse = res.response;
             } else {
-                await generateConversationalNext(generatedQuestions[currentQIdx].text, transcript, "Wrap up");
+                await generateConversationalNext(lastAssistantResponse, transcript, "Wrap up");
                 endInterview(); return;
             }
         }

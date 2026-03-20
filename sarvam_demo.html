@@ -2760,6 +2760,76 @@ Output ONLY valid JSON, no markdown:
             };
         }
 
+        let isBargeInActive = false;
+        async function startBargeInListener(onInterrupt) {
+            isBargeInActive = true;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+                });
+                
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                const source = audioCtx.createMediaStreamSource(stream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                source.connect(analyser);
+
+                const scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
+                analyser.connect(scriptNode);
+                scriptNode.connect(audioCtx.destination);
+                
+                let continuousSpeechStart = 0;
+                
+                scriptNode.onaudioprocess = function() {
+                    if (!isBargeInActive) return;
+                    let array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let sum = 0;
+                    for(let i = 0; i < array.length; i++) sum += array[i];
+                    const avg = sum / array.length;
+                    
+                    const volBar = document.getElementById('volume-bar');
+                    if (volBar) {
+                        const pct = Math.min(100, (avg / 60) * 100);
+                        volBar.style.width = pct + '%';
+                        volBar.style.background = avg > 20 ? 'var(--teal)' : 'var(--muted)';
+                    }
+
+                    if (avg > 20) { 
+                        if (continuousSpeechStart === 0) {
+                            continuousSpeechStart = Date.now();
+                        } else if (Date.now() - continuousSpeechStart > 400) { 
+                            isBargeInActive = false;
+                            
+                            scriptNode.disconnect();
+                            source.disconnect();
+                            audioCtx.close().catch(()=>{});
+                            stream.getTracks().forEach(t => t.stop());
+                            
+                            onInterrupt();
+                        }
+                    } else {
+                        continuousSpeechStart = 0;
+                    }
+                };
+
+                return {
+                    stop: () => {
+                        isBargeInActive = false;
+                        scriptNode.disconnect();
+                        source.disconnect();
+                        audioCtx.close().catch(()=>{});
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                };
+            } catch (err) {
+                console.error("No mic for barge-in", err);
+                return { stop: () => {} };
+            }
+        }
+
         let persistentAudioCtx = null;
         async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction) {
             document.getElementById('callStatusText').textContent = 'Thinking...';
@@ -2780,6 +2850,30 @@ Output ONLY valid JSON, no markdown:
                 let nextPlayTime = 0;
                 let sourceNodes = []; 
                 let pendingChunks = 0;
+                let bargeInListener = null;
+
+                const handleInterrupt = () => {
+                    console.log("BARGE IN DETECTED!");
+                    isDone = true;
+                    sourceNodes.forEach(s => { try { s.stop(); } catch(e){} });
+                    sourceNodes = [];
+                    pendingChunks = 0;
+                    isPlaying = false;
+                    setWaveform(false);
+                    
+                    if (ws) {
+                        ws.onmessage = null;
+                        ws.close();
+                        conversationalWS = null;
+                    }
+                    
+                    document.getElementById('callStatusText').textContent = 'Interrupted! Listening...';
+                    
+                    const partialText = fullResponse.replace("[[END_INTERVIEW]]", "").replace(/\[\[.*?\]\]/g, "").trim() + " --";
+                    resolve({ action: "repeat", response: partialText });
+                };
+
+                startBargeInListener(handleInterrupt).then(l => bargeInListener = l);
                 
                 async function playAudioChunk(arrayBuffer) {
                     pendingChunks++;
@@ -2813,6 +2907,7 @@ Output ONLY valid JSON, no markdown:
                                 
                                 setTimeout(() => {
                                     ws.onmessage = null; 
+                                    if(bargeInListener) bargeInListener.stop();
                                     resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                                 }, 1000); // 1.0s safety delay to prevent recording agent tail echo
                             }
@@ -2826,6 +2921,7 @@ Output ONLY valid JSON, no markdown:
                              let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
                                          (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
                                          (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
+                             if(bargeInListener) bargeInListener.stop();
                              resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                          }
                     }
@@ -2861,6 +2957,7 @@ Output ONLY valid JSON, no markdown:
                             
                             setTimeout(() => {
                                 ws.onmessage = null; 
+                                if(bargeInListener) bargeInListener.stop();
                                 resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                             }, 1000); 
                         }
@@ -2868,6 +2965,7 @@ Output ONLY valid JSON, no markdown:
                         console.error("WebSocket Stream Error:", data.msg);
                         showToast(`❌ logic server error: ${data.msg}`, 'rose');
                         ws.onmessage = null;
+                        if(bargeInListener) bargeInListener.stop();
                         // Instead of auto-skipping, we reject or resolve with 'error'
                         resolve({ response: "I'm sorry, I encountered an error. Could you repeat that?", action: "repeat" });
                     }
@@ -2908,6 +3006,7 @@ Output ONLY valid JSON, no markdown:
                     console.error("WebSocket connection error:", err);
                     showToast('Logic server connection failed. Retrying interview turn...', 'rose');
                     ws.onmessage = null;
+                    if(bargeInListener) bargeInListener.stop();
                     // Resolve with repeat to stay on current question
                     resolve({ response: "Connection issue. Let me try again.", action: "repeat" });
                 };

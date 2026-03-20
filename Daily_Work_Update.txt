@@ -1,13 +1,1 @@
-Daily Work Update
 
-(1) Project: HR Solution – AI Interview Microservice Migration
-
-- Successfully decoupled the AI Interview demo project from its frontend UI to establish a standalone, headless API microservice using FastAPI.
-- Migrated legacy Python proxy scripts into standard REST endpoints (STT, TTS, Generating Questions, Scoring) for seamless integration with the main HR project.
-- Re-architected the live interview engine into a unified WebSocket stream (`ws/v1/interview-stream`) directly linking OpenAI's LLM logic to Sarvam TTS for ultra low-latency conversational responses.
-- Drastically reduced Speech-to-Text latency by stripping out heavy PCM chunking algorithms and enabling direct raw blob streaming to Deepgram.
-- Tuned the Voice Activity Detection (VAD) silence threshold up to 2.5 seconds to accommodate natural candidate pauses and improve conversational fluidity.
-- Re-engineered the "Emma" Interviewer system prompt to enforce highly natural speech rhythm, ban robotic corporate phrasing, and intelligently handle edge cases (e.g., candidates asking for hints or repeating questions).
-- Diagnosed and fixed a critical bug in the interview scoring algorithm where "retried" answers wiped out the transcript array, ensuring proper 1-10 assessments.
-- Implemented strict Pydantic data validation schemas across all endpoints to automatically generate an interactive Swagger UI testing suite.
-- Built a custom in-memory caching layer to fix a known Swagger UI limitation, allowing native browser playback of generated MP3 audio chunks.

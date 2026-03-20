@@ -36,22 +36,4 @@ While this custom architecture eliminates massive Retell subscription costs, it 
 
 ---
 
-## 3. Session Report: What We Accomplished Today
 
-Today's session focused on dramatically increasing the latency, human-likeness, predictability, and scalability of the Interview Agent, transforming it from a brittle HTML prototype into a fully headless, portable Microservice. 
-
-### Phase 1: Conversation & Agent Engineering
-* **Prompt Overhaul:** Completely rewrote "Emma's" system prompt. Forced her to use contractions, natural breathing breaks, and completely banned generic robotic affirmations ("Great question!", "Certainly!"). She now explicitly handles edge cases like candidates begging for hints or answers, and politely deflects them.
-* **Interruption UX fix:** We increased the VAD (Voice Activity Detection) threshold to `2500ms`. The agent used to aggressively cut candidates off if they took a breath mid-sentence. Now, it respects natural human speaking pauses.
-* **The Scoring Engine Hotfix:** Discovered and patched a massive algorithmic bug in the final HR Transcript aggregator where retried answers wiped the `storedTranscripts` array structure, resulting in perfect interviews scoring a `0`. The algorithm now surgically targets the final index length of the attempt array.
-
-### Phase 2: Latency Demolition
-* **Zero-Chunking Pipeline:** We eliminated a convoluted and incredibly slow STT strategy that was slicing candidate audio into PCM buffered HTTP chunks. By rewiring the `transcribeAnswer` function to pipe the direct blob straight to Deepgram, we collapsed processing time from 3-5 seconds to essentially instant transcription.
-
-### Phase 3: The Microservice Migration
-Because integrating the static `sarvam_demo` package statically into the main `hr-solutions` hub was fundamentally unfeasible, we completed a total surgical extraction of the system.
-* **Headless API Engine:** Built a completely decoupled `FastAPI` instance (`app.py`), shifting the entire architecture from scattered proxy nodes to a unified backend.
-* **REST Ecosystem:** Deployed 5 standalone `POST` endpoints (`/api/v1/generate-questions`, `/stt`, `/tts`, `/llm-turn`, `/score`).
-* **Instant Swagger Documentation:** Injected strict Data Validation (`pydantic Models`) into the endpoints to automatically generate an interactive visual testing suite at `http://localhost:3000/docs`.
-* **The Retell Replacement:** Collapsed `ws_server.py` into a highly optimized WebSocket stream endpoint (`/ws/v1/interview-stream`).
-* **Quality of Life Debugging Cache:** Built an in-memory byte caching layer intercepting the `/api/v1/tts` endpoint to instantly bypass a known Swagger UI bug, allowing engineers to natively stream POST-generated MP3 fragments perfectly in the browser.

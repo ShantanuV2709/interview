@@ -1822,6 +1822,16 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-title">Off-Topic Store <span class="pill" id="offTopicCount">0 pairs</span>
+                        </div>
+                        <div id="offTopicStore" style="max-height:240px; overflow-y:auto;">
+                            <div class="text-muted" style="text-align:center; padding:40px 0;">
+                                Off-topic candidate interactions
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2798,11 +2808,12 @@ Output ONLY valid JSON, no markdown:
                                 
                                 let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
                                              (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
-                                             (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
+                                             (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
+                                             (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
                                 
                                 setTimeout(() => {
                                     ws.onmessage = null; 
-                                    resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
+                                    resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                                 }, 1000); // 1.0s safety delay to prevent recording agent tail echo
                             }
                         };
@@ -2815,7 +2826,7 @@ Output ONLY valid JSON, no markdown:
                              let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
                                          (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
                                          (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
-                             resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
+                             resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                          }
                     }
                 }
@@ -2829,7 +2840,7 @@ Output ONLY valid JSON, no markdown:
                     const data = JSON.parse(msg.data);
                     if (data.type === "token") {
                         fullResponse += data.text;
-                        const displayText = fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace(/\\n/g, '<br/>');
+                        const displayText = fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").replace(/\\n/g, '<br/>');
                         document.getElementById('currentQ').innerHTML = displayText;
                     } else if (data.type === "usage") {
                         if (data.openai) {
@@ -2850,7 +2861,7 @@ Output ONLY valid JSON, no markdown:
                             
                             setTimeout(() => {
                                 ws.onmessage = null; 
-                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").trim() });
+                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                             }, 1000); 
                         }
                     } else if (data.type === "error") {
@@ -2999,6 +3010,16 @@ Output ONLY valid JSON, no markdown:
                             startRecording();
                             return;
                         }
+                        if (result.action === 'offtopic') {
+                            storeOffTopicTranscript(transcript, result.response);
+                            document.getElementById('currentQ').innerHTML = result.response;
+
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
 
                         if (result.action === 'repeat') {
                             generatedQuestions[currentQIdx].dynamicText = result.response;
@@ -3043,6 +3064,16 @@ Output ONLY valid JSON, no markdown:
                             
                             const spoke = await speakQuestion(generatedQuestions[currentQIdx].text);
                             if (!spoke) await new Promise(r => setTimeout(r, 1000));
+
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = `🎙 Recording your answer...`;
+                            startRecording();
+                            return;
+                        }
+                        if (result.action === 'offtopic') {
+                            storeOffTopicTranscript(transcript, result.response);
+                            document.getElementById('currentQ').innerHTML = result.response;
 
                             document.getElementById('nextQBtn').disabled = false;
                             document.getElementById('callDot').className = 'status-dot live';
@@ -3184,6 +3215,36 @@ Output ONLY valid JSON, no markdown:
                 totalPairs += storedTranscripts[key].length;
             }
             document.getElementById('transcriptCount').textContent = totalPairs + ' pairs';
+        }
+
+        let offTopicTranscripts = [];
+        function storeOffTopicTranscript(question, answer) {
+            const finalAnswer = answer && answer.trim() ? answer.trim() : '[No speech detected]';
+            offTopicTranscripts.push({ question, answer: finalAnswer });
+            
+            const store = document.getElementById('offTopicStore');
+            const div = document.createElement('div');
+            div.style.marginBottom = '12px';
+            store.appendChild(div);
+            
+            div.innerHTML = `
+    <div class="q-item" style="border-left:3px solid var(--rose);border-radius:0 8px 8px 0;">
+      <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">Candidate</div>
+      <div class="q-text" style="color:var(--rose);">${question}</div>
+    </div>
+    <div class="q-item" style="border-left:3px solid var(--blue);border-radius:0 8px 8px 0;margin-top:4px;">
+      <div class="q-num" style="background:var(--blue-dim);color:var(--blue);">Interviewer</div>
+      <div class="q-text">${finalAnswer}</div>
+    </div>
+  `;
+            store.scrollTop = store.scrollHeight;
+            
+            const emptyState = store.querySelector('.text-muted');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+            
+            document.getElementById('offTopicCount').textContent = offTopicTranscripts.length + ' pairs';
         }
 
         function updateInterviewCostDisplay() {

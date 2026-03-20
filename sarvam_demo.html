@@ -1226,7 +1226,7 @@
                     <div class="card-title">System Pipeline <span class="pill">Full Stack</span></div>
                     <div class="pipeline">
                         <div class="pipe-node">
-                            <div class="pipe-icon gpt">📝</div>
+                            <div class="pipe-icon" style="font-size:18px">📋</div>
                             <div class="pipe-label">Question Gen</div>
                             <span class="pipe-model tag tag-blue">GPT-4o</span>
                         </div>
@@ -1238,15 +1238,21 @@
                         </div>
                         <div class="pipe-arrow">→</div>
                         <div class="pipe-node">
-                            <div class="pipe-icon call">📞</div>
+                            <div class="pipe-icon" style="font-size:18px">🌐</div>
                             <div class="pipe-label">Live Call</div>
-                            <span class="pipe-model tag tag-teal">Vapi/Twilio</span>
+                            <span class="pipe-model tag tag-teal">WebSocket</span>
                         </div>
                         <div class="pipe-arrow">→</div>
                         <div class="pipe-node">
                             <div class="pipe-icon stt">👂</div>
                             <div class="pipe-label">STT Transcribe</div>
-                            <span class="pipe-model tag tag-rose">saarika:v2.5</span>
+                            <span class="pipe-model tag tag-rose">Deepgram Nova-2</span>
+                        </div>
+                        <div class="pipe-arrow">→</div>
+                        <div class="pipe-node">
+                            <div class="pipe-icon" style="font-size:18px">🧠</div>
+                            <div class="pipe-label">Interview Brain</div>
+                            <span class="pipe-model tag tag-blue">GPT-4o-mini</span>
                         </div>
                         <div class="pipe-arrow">→</div>
                         <div class="pipe-node">
@@ -2142,13 +2148,15 @@
         let storedTranscripts = [];
         let currentQIdx = -1;
         let callActive = false;
-        let currentQHistory = [];
+        let currentQHistory = []; // kept for local compat
+        let conversationHistory = []; // SESSION-WIDE memory: last 12 turns sent to OpenAI as role messages
         let ttsCharCount = 0;
         let sttSecCount = 0;
         let mediaRecorder = null;
         let audioChunks = [];
         let recordingStartTime = null;
         let currentAudio = null;
+        let isTTSPlaying = false; // FIX: mute VAD while Emma is speaking
         
         // VAD (Voice Activity Detection) state variables
         let vadAudioContext = null;
@@ -2164,7 +2172,7 @@
         let dgAudioCtx = null;
         let dgSource = null;
         let dgProcessor = null;
-        let sttFallbackMode = false; // Set to true if Deepgram WS fails
+        let sttFallbackMode = false; // FIX: reset per-question, not sticky session-wide
 
         // Brain telemetry helper
         function brainRecord(component, eventType, detail, severity='info') {
@@ -2422,7 +2430,75 @@ Output ONLY valid JSON, no markdown:
         // ─────────────────────────────────────────────────────────────────────────────
         // SCREEN 2 — REAL SARVAM TTS + MIC RECORDING + REAL SARVAM STT
         // ─────────────────────────────────────────────────────────────────────────────
-        function startInterview() {
+        
+        // ── BARGE-IN LOGIC ──
+        let globalMicStream = null;
+        let bargeInCtx = null;
+        let isBargeInTriggered = false;
+        let isInInterruptionMode = false; // true when user interrupted Divya and we're waiting for their follow-up
+
+        async function initBargeIn() {
+            if (globalMicStream) return;
+            try {
+                globalMicStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                });
+                bargeInCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let src = bargeInCtx.createMediaStreamSource(globalMicStream);
+                let anl = bargeInCtx.createAnalyser();
+                anl.smoothingTimeConstant = 0.6; // Less smoothing = faster reaction
+                anl.fftSize = 256;
+                // LATENCY: 512 samples @ 16kHz = one frame every ~32ms (4x faster than 2048)
+                let proc = bargeInCtx.createScriptProcessor(512, 1, 1);
+                src.connect(anl);
+                anl.connect(proc);
+                proc.connect(bargeInCtx.destination);
+                let loudFrames = 0;
+                proc.onaudioprocess = () => {
+                    if (!isTTSPlaying || isBargeInTriggered) {
+                        loudFrames = 0;
+                        return;
+                    }
+                    let arr = new Uint8Array(anl.frequencyBinCount);
+                    anl.getByteFrequencyData(arr);
+                    let sum = 0; for(let i=0; i<arr.length; i++) sum += arr[i];
+                    let avg = sum / arr.length;
+                    
+                    if (avg > 38) { // Clear voice threshold
+                        loudFrames++;
+                        if (loudFrames >= 3) { // ~96ms of sustained speech at 32ms/frame
+                            console.log("💥 Barge-in! vol:", avg.toFixed(1));
+                            abortEmmaTTS();
+                        }
+                    } else {
+                        loudFrames = 0;
+                    }
+                };
+            } catch(e) { console.warn("Barge-in init failed:", e); }
+        }
+
+        window._abortHTTPTTS = null;
+        window._abortWS = null;
+
+        function abortEmmaTTS() {
+            isBargeInTriggered = true;
+            isTTSPlaying = false;
+            
+            if (window._abortHTTPTTS) {
+                window._abortHTTPTTS();
+                window._abortHTTPTTS = null;
+            }
+            if (window._abortWS) {
+                window._abortWS();
+                window._abortWS = null;
+            }
+            document.getElementById('callStatusText').textContent = '🎙 Interrupted — listening...';
+            document.getElementById('callDot').className = 'status-dot live';
+            setWaveform(false);
+            // NOTE: do NOT call startRecording() here — nextQ()'s interrupted handler does it correctly
+        }
+
+        async function startInterview() {
             if (!requireKeys('sarvam')) return;
             if (!generatedQuestions.length) {
                 showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
@@ -2432,16 +2508,22 @@ Output ONLY valid JSON, no markdown:
             if (!generatedQuestions[0].isPhase0) {
                 generatedQuestions.unshift({
                     isPhase0: true,
-                    text: "Hey, welcome to Ideal IT Techno! I'm Emma, and I'll be your interviewer today. Before we jump in — what's your name?",
-                    dynamicText: "Hey, welcome to Ideal IT Techno! I'm Emma, and I'll be your interviewer today. Before we jump in — what's your name?",
+                    text: "Hey, welcome to Ideal IT Techno! I'm Divya, and I'll be your interviewer today. Before we jump in — what's your name?",
+                    dynamicText: "Hey, welcome to Ideal IT Techno! I'm Divya, and I'll be your interviewer today. Before we jump in — what's your name?",
                     category: "hr"
                 });
             }
 
             callActive = true; currentQIdx = 0;
             storedTranscripts = []; ttsCharCount = 0; sttSecCount = 0;
+            conversationHistory = []; // FIX: reset session memory on new interview
 
             document.getElementById('startCallBtn').disabled = true;
+            document.getElementById('startCallBtn').innerHTML = 'Setting up mic...';
+            
+            await initBargeIn();
+            
+            document.getElementById('startCallBtn').innerHTML = 'Interview Active';
             document.getElementById('nextQBtn').disabled = false;
             document.getElementById('endCallBtn').disabled = false;
             document.getElementById('transcriptStore').innerHTML = '';
@@ -2460,7 +2542,7 @@ Output ONLY valid JSON, no markdown:
         async function loadQuestion(idx) {
             if (idx >= generatedQuestions.length) { endInterview(); return; }
             currentQIdx = idx;
-            currentQHistory = [];
+            // NOTE: conversationHistory is intentionally NOT reset here — it persists across questions
             const q = generatedQuestions[idx];
 
             document.getElementById('qProgressTag').textContent = `Q ${idx + 1}/${generatedQuestions.length}`;
@@ -2548,29 +2630,44 @@ Output ONLY valid JSON, no markdown:
                 return await new Promise((resolve) => {
                     const timer = setTimeout(() => {
                         console.warn('⌛ TTS playback safety timeout reached');
+                        isTTSPlaying = false;
                         resolve(false); 
                     }, 15000); 
                     
-                    currentAudio = new Audio(`data:audio/mp3;base64,${audioB64}`);
+                    isTTSPlaying = true; // FIX: mute VAD during playback
+                    isBargeInTriggered = false; // Reset interrupt flag
+                    if (bargeInCtx && bargeInCtx.state === 'suspended') bargeInCtx.resume();
+                    
+                    window._abortHTTPTTS = () => {
+                        clearTimeout(timer);
+                        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+                        resolve(true); 
+                    };
+
+                    currentAudio = new Audio(`data:audio/wav;base64,${audioB64}`);
                     currentAudio.onplay = () => {
                         const playStart = performance.now();
                         console.log(`[LATENCY] Q${currentQIdx + 1} Audio Playback Started: ${(playStart - fetchEnd).toFixed(1)}ms after fetch`);
                     };
                     currentAudio.onended = () => { 
-                        clearTimeout(timer); 
+                        window._abortHTTPTTS = null;
+                        clearTimeout(timer);
+                        isTTSPlaying = false; // FIX: unmute VAD after playback
                         console.log(`[LATENCY] Q${currentQIdx + 1} Audio Playback Finished. Waiting for sync buffer...`);
                         setTimeout(() => {
                             console.log(`[LATENCY] Q${currentQIdx + 1} Sync Buffer Done. Starting Recording.`);
                             resolve(true); 
-                        }, 1000); 
+                        }, 50); // LATENCY: reduced 200ms→50ms post-TTS handoff gap
                     };
                     currentAudio.onerror = (e) => { 
-                        clearTimeout(timer); 
+                        clearTimeout(timer);
+                        isTTSPlaying = false;
                         console.error('Audio object error:', e);
                         resolve(false); 
                     };
                     currentAudio.play().catch(err => {
                         clearTimeout(timer);
+                        isTTSPlaying = false;
                         console.warn('🔇 Audio play blocked or failed:', err);
                         resolve(false); 
                     });
@@ -2583,11 +2680,11 @@ Output ONLY valid JSON, no markdown:
             }
         }
 
-        async function startRecording() {
-            console.log('🚀 startRecording() called');
+        async function startRecording(isInterruption = false) {
+            console.log(`🚀 startRecording() called (isInterruption: ${isInterruption})`);
             liveTranscript = '';
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
+                const stream = globalMicStream || await navigator.mediaDevices.getUserMedia({
                     audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
                 });
                 audioChunks = [];
@@ -2622,6 +2719,8 @@ Output ONLY valid JSON, no markdown:
                 let hasSpoken = false;
 
                 // ── Deepgram WebSocket real-time STT (via Backend Proxy) ──
+                // FIX: Reset fallback mode per-question so a single WS failure doesn't permanently degrade the session
+                sttFallbackMode = false;
                 if (!sttFallbackMode) {
                     return new Promise((resolve) => {
                         document.getElementById('callStatusText').textContent = 'Connecting to STT Proxy...';
@@ -2664,7 +2763,8 @@ Output ONLY valid JSON, no markdown:
                         };
 
                         // PCM processor logic...
-                        dgProcessor = dgAudioCtx.createScriptProcessor(4096, 1, 1);
+                        // LATENCY: halved buffer 4096→2048 samples to reduce STT audio lag by ~43ms
+                        dgProcessor = dgAudioCtx.createScriptProcessor(2048, 1, 1);
                         dgSource.connect(dgProcessor);
                         dgProcessor.connect(dgAudioCtx.destination);
                         dgProcessor.onaudioprocess = (e) => {
@@ -2710,13 +2810,13 @@ Output ONLY valid JSON, no markdown:
                         };
 
                         // VAD: silence detection
-                        setupVAD(analyser, silenceStart, hasSpoken);
+                        setupVAD(analyser, silenceStart, hasSpoken, isInterruption);
                     });
                 } else {
                     console.log('Using STT Fallback Mode (Batch HTTP)');
                     document.getElementById('callStatusText').textContent = '🎙 Recording (Batch Fallback)...';
                     document.getElementById('dg-debug-status').textContent = 'FALLBACK';
-                    setupVAD(analyser, silenceStart, hasSpoken);
+                    setupVAD(analyser, silenceStart, hasSpoken, isInterruption);
                 }
 
                 document.getElementById('volume-meter-container').style.display = 'flex';
@@ -2727,8 +2827,12 @@ Output ONLY valid JSON, no markdown:
         }
 
         // Helper to separate VAD logic so it can be called from both paths
-        function setupVAD(analyser, silenceStart, hasSpoken) {
+        // FIX: isTTSPlaying gate prevents Emma's own voice from triggering VAD
+        function setupVAD(analyser, silenceStart, hasSpoken, isInterruption = false) {
             vadNode.onaudioprocess = function() {
+                // FIX: Completely ignore mic input while TTS is playing to prevent echo-trigger
+                if (isTTSPlaying) return;
+
                 let array = new Uint8Array(analyser.frequencyBinCount);
                 analyser.getByteFrequencyData(array);
                 let sum = 0;
@@ -2742,26 +2846,42 @@ Output ONLY valid JSON, no markdown:
                     volBar.style.background = avg > 20 ? 'var(--teal)' : 'var(--muted)';
                 }
 
-                if (avg > 15) {
+                if (!hasSpoken && isInterruption && (Date.now() - recordingStartTime > 4000)) {
+                    console.log('🔇 VAD: Interruption abandoned by user (no speech for 4s), submitting empty...');
+                    hasSpoken = true; // force end
+                    silenceStart = 0;
+                    nextQ();
+                    return;
+                }
+
+                // FIX: speech threshold raised 10→18 to reduce false triggers from background noise
+                if (avg > 18) {
                     silenceStart = Date.now();
                     if (!hasSpoken) {
                         console.log('🎤 VAD: Speech detected');
                         hasSpoken = true;
                     }
-                } else if (hasSpoken && (Date.now() - silenceStart > 2500)) { // 2.5s pause safe
-                    if (Date.now() - recordingStartTime > 2500) {
-                        console.log('🔇 VAD: Silence detected (2.5s), submitting...');
-                        hasSpoken = false;
-                        nextQ();
-                    } else {
-                        hasSpoken = false;
+                } else {
+                    const silenceLimit = isInterruption ? 1500 : 4000;
+                    if (hasSpoken && (Date.now() - silenceStart > silenceLimit)) {
+                        const spokenDuration = Date.now() - recordingStartTime;
+                        const minSpeakTime = isInterruption ? 400 : 1500;
+                        
+                        if (spokenDuration > minSpeakTime) {
+                            console.log(`🔇 VAD: Silence detected (${silenceLimit/1000}s), submitting...`);
+                            hasSpoken = false;
+                            nextQ();
+                        } else {
+                            // Too short — reset and wait for more speech
+                            silenceStart = Date.now();
+                        }
                     }
                 }
             };
         }
 
         let persistentAudioCtx = null;
-        async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction) {
+        async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction, history = [], isInterruption = false) {
             document.getElementById('callStatusText').textContent = 'Thinking...';
             document.getElementById('currentQ').innerHTML = ''; 
             document.getElementById('callDot').className = 'status-dot speaking';
@@ -2771,6 +2891,7 @@ Output ONLY valid JSON, no markdown:
             }
             const audioCtx = persistentAudioCtx;
             if (audioCtx.state === 'suspended') await audioCtx.resume();
+            if (bargeInCtx && bargeInCtx.state === 'suspended') await bargeInCtx.resume();
 
             return new Promise((resolve, reject) => {
                 let ws;
@@ -2781,6 +2902,13 @@ Output ONLY valid JSON, no markdown:
                 let sourceNodes = []; 
                 let pendingChunks = 0;
                 
+                window._abortWS = () => {
+                    if (sourceNodes && sourceNodes.length) { sourceNodes.forEach(s => { try { s.stop(); } catch(e){} }); sourceNodes = []; }
+                    if (ws) { ws.onmessage = null; ws.close(1000); }
+                    window._abortWS = null;
+                    resolve({ action: "interrupted", response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
+                };
+
                 async function playAudioChunk(arrayBuffer) {
                     pendingChunks++;
                     try {
@@ -2793,6 +2921,7 @@ Output ONLY valid JSON, no markdown:
                         const currentTime = audioCtx.currentTime;
                         if (nextPlayTime < currentTime) nextPlayTime = currentTime;
                         
+                        isTTSPlaying = true; // FIX: mute VAD during streaming TTS chunks
                         source.start(nextPlayTime);
                         if (!isPlaying) {
                             setWaveform(true);
@@ -2803,7 +2932,9 @@ Output ONLY valid JSON, no markdown:
                         source.onended = () => {
                             pendingChunks--;
                             if (isDone && pendingChunks === 0) {
+                                window._abortWS = null;
                                 isPlaying = false;
+                                isTTSPlaying = false; // FIX: unmute VAD once last TTS chunk finishes
                                 setWaveform(false);
                                 
                                 let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
@@ -2812,9 +2943,9 @@ Output ONLY valid JSON, no markdown:
                                              (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
                                 
                                 setTimeout(() => {
-                                    ws.onmessage = null; 
+                                    if (ws) ws.onmessage = null; 
                                     resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
-                                }, 1000); // 1.0s safety delay to prevent recording agent tail echo
+                                }, 50); // LATENCY: tail-echo guard 200ms→50ms
                             }
                         };
                         
@@ -2823,6 +2954,7 @@ Output ONLY valid JSON, no markdown:
                          pendingChunks--;
                          console.error("Audio Decode Error:", e);
                          if (isDone && pendingChunks === 0) {
+                             window._abortWS = null;
                              let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
                                          (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
                                          (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
@@ -2853,34 +2985,42 @@ Output ONLY valid JSON, no markdown:
                     } else if (data.type === "done") {
                         isDone = true;
                         if (pendingChunks === 0) {
+                            window._abortWS = null;
                             isPlaying = false;
+                            isTTSPlaying = false; // FIX: no chunks were played (e.g. TTS silent), still unmute
                             setWaveform(false);
                             let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
                                          (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
-                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
+                                         (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
+                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
                             
                             setTimeout(() => {
-                                ws.onmessage = null; 
+                                if (ws) ws.onmessage = null; 
                                 resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
-                            }, 1000); 
+                            }, 50); // LATENCY: tail-echo guard 200ms→50ms (done path)
                         }
                     } else if (data.type === "error") {
+                        window._abortWS = null;
                         console.error("WebSocket Stream Error:", data.msg);
                         showToast(`❌ logic server error: ${data.msg}`, 'rose');
-                        ws.onmessage = null;
+                        if (ws) ws.onmessage = null;
                         // Instead of auto-skipping, we reject or resolve with 'error'
                         resolve({ response: "I'm sorry, I encountered an error. Could you repeat that?", action: "repeat" });
                     }
                 };
 
                 const sendAsk = () => {
+                    isBargeInTriggered = false; // reset interrupt flag
                     const askStart = performance.now();
-                    console.log(`[LATENCY] Thinking request sent at ${askStart.toFixed(1)}ms`);
+                    const histSlice = isInterruption ? history.slice(-6) : history.slice(-24);
+                    console.log(`[LATENCY] Thinking request sent at ${askStart.toFixed(1)}ms (history: ${histSlice.length} messages, interruption: ${isInterruption})`);
                     ws.send(JSON.stringify({
                         action: "ask",
                         prev: prevQ,
                         transcript: userAns,
-                        nextQ: nextQObjOrInstruction
+                        nextQ: nextQObjOrInstruction,
+                        history: histSlice,
+                        isInterruption: isInterruption
                     }));
                 };
 
@@ -2911,12 +3051,78 @@ Output ONLY valid JSON, no markdown:
                     // Resolve with repeat to stay on current question
                     resolve({ response: "Connection issue. Let me try again.", action: "repeat" });
                 };
+
+                ws.onclose = (event) => {
+                    // Only treat as error if we NEVER received the "done" signal.
+                    // If isDone is true, audio is just finishing playing — WS close is expected.
+                    if (!isDone && window._abortWS) {
+                        console.warn("Logic server disconnected unexpectedly (code " + event.code + ") before done signal");
+                        window._abortWS = null;
+                        showToast('Logic server connection dropped. Recovering...', 'amber');
+                        resolve({ response: "Sorry, I missed that. Could you say that again?", action: "repeat" });
+                    } else {
+                        console.log("Logic server WS closed cleanly (isDone=" + isDone + ", code=" + event.code + ")");
+                        conversationalWS = null; // force fresh connection next turn
+                    }
+                };
             });
         }
 
         async function nextQ() {
             if (isNavigating || !callActive) return;
             isNavigating = true;
+
+            // ── INTERRUPTION MODE: user just finished speaking their follow-up query ──
+            if (isInInterruptionMode) {
+                isInInterruptionMode = false;
+                showToast('🗣 Processing your interruption...', 'amber');
+                try {
+                    cleanupVAD();
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                        await new Promise(resolve => {
+                            mediaRecorder.onstop = () => resolve();
+                            mediaRecorder.stop();
+                        });
+                    }
+                    if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+                        dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
+                    if (dgProcessor) { dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                    if (vadNode) { vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                    if (dgSource) { dgSource.disconnect(); dgSource = null; }
+                    if (dgAudioCtx && dgAudioCtx.state !== 'closed') { dgAudioCtx.close().catch(()=>{}); dgAudioCtx = null; }
+                    if (dgSocket) { dgSocket.close(1000); dgSocket = null; }
+
+                    const interruptTranscript = liveTranscript || '[No speech detected]';
+                    console.log('[INTERRUPTION] User said:', interruptTranscript);
+
+                    // Respond to the user's query with fast/lightweight settings (isInterruption=true)
+                    const interruptResult = await generateConversationalNext(
+                        generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text,
+                        interruptTranscript,
+                        generatedQuestions[Math.min(currentQIdx+1, generatedQuestions.length-1)].text,
+                        conversationHistory,
+                        true // → short history, 80 token cap, fast response
+                    );
+                    conversationHistory.push({ role: 'user', content: `[Interruption Q${currentQIdx+1}] ${interruptTranscript}` });
+                    conversationHistory.push({ role: 'assistant', content: interruptResult.response });
+
+                    // Resume recording for the SAME question (index not advanced)
+                    document.getElementById('currentQ').innerHTML = interruptResult.response;
+                    document.getElementById('nextQBtn').disabled = false;
+                    document.getElementById('callDot').className = 'status-dot live';
+                    document.getElementById('callStatusText').textContent = '🎙 Recording your answer...';
+                    isNavigating = false;
+                    startRecording(); // normal recording, same question
+                } catch(e) {
+                    console.error('Interruption handler error:', e);
+                    isNavigating = false;
+                    startRecording();
+                }
+                return;
+            }
+
             showToast('⏳ Processing answer...', 'teal');
             try {
                 console.log('--- nextQ triggered ---');
@@ -2930,10 +3136,11 @@ Output ONLY valid JSON, no markdown:
                     document.getElementById('callStatusText').textContent = 'Transcribing answer...';
 
                     await new Promise(resolve => {
-                        const timer = setTimeout(resolve, 200); // 200ms grace period safety
+                        const timer = setTimeout(resolve, 10); // Plunged stopping grace period down to 10ms
                         mediaRecorder.onstop = () => { clearTimeout(timer); resolve(); };
                         mediaRecorder.stop();
-                        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                        // LATENCY & BARGE-IN: We deliberately keep the globalMicStream track ALIVE across turns.
+                        // So DO NOT use 'mediaRecorder.stream.getTracks().forEach(t => t.stop())'
                     });
                     console.log(`[LATENCY] microRecorder stop took: ${(performance.now() - stopStart).toFixed(1)}ms`);
 
@@ -2942,7 +3149,7 @@ Output ONLY valid JSON, no markdown:
                     // ── Deepgram streaming: signal end & collect final results ──
                     if (dgSocket && dgSocket.readyState === WebSocket.OPEN) {
                         dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
-                        await new Promise(resolve => setTimeout(resolve, 100)); // only 100ms for final buffers
+                        await new Promise(resolve => setTimeout(resolve, 20)); // only 20ms for final buffers
                     }
                     // Cleanup audio pipeline
                     if (dgProcessor) { dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
@@ -2978,22 +3185,35 @@ Output ONLY valid JSON, no markdown:
                         `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · $${cost.toFixed(5)}) · Deepgram ⚡`;
                     
                     if (currentQIdx + 1 < generatedQuestions.length) {
-                        let prevContext = generatedQuestions[currentQIdx].text;
-                        if (currentQHistory.length > 0) {
-                            prevContext = `Original Question: ${generatedQuestions[currentQIdx].text}\n` +
-                                          `Past Interaction:\n` + currentQHistory.join("\n");
-                        }
+                        // prevContext is just the question text — full history is passed separately as role messages
                         
                         const result = await generateConversationalNext(
-                            prevContext, 
+                            generatedQuestions[currentQIdx].text, 
                             transcript, 
-                            generatedQuestions[currentQIdx+1].text
+                            generatedQuestions[currentQIdx+1].text,
+                            conversationHistory,
+                            false // normal turn, not an interruption
                         );
                         
-                        // Log this interaction so the LLM remembers it if we stay on this question
-                        currentQHistory.push(`Candidate: ${transcript}`);
-                        currentQHistory.push(`Interviewer: ${result.response}`);
+                        // Append this turn to session-wide memory (role-based for OpenAI)
+                        conversationHistory.push({ role: "user", content: `[Q: ${generatedQuestions[currentQIdx].text}] ${transcript}` });
+                        conversationHistory.push({ role: "assistant", content: result.response });
                         
+                        if (result.action === 'interrupted') {
+                            // Divya was cut off mid-response. Start listening for the user's query.
+                            // DO NOT advance the question index.
+                            document.getElementById('currentQ').innerHTML =
+                                (result.response || generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text) +
+                                ' <em style="color:var(--rose);font-size:11px">[interrupted]</em>';
+                            document.getElementById('nextQBtn').disabled = false;
+                            document.getElementById('callDot').className = 'status-dot live';
+                            document.getElementById('callStatusText').textContent = '🎙 Listening for your query...';
+                            isInInterruptionMode = true; // route next nextQ() call through interruption handler
+                            isNavigating = false;  // release lock so VAD-triggered nextQ() can fire
+                            startRecording(true);  // fast VAD timeouts
+                            return;
+                        }
+
                         if (result.action === 'previous') {
                             if (currentQIdx > 0) {
                                 currentQIdx--;
@@ -3040,21 +3260,17 @@ Output ONLY valid JSON, no markdown:
                         generatedQuestions[currentQIdx+1].dynamicText = result.response;
                     } else {
                         document.getElementById('callStatusText').textContent = 'Generating wrap up...';
-                        
-                        let prevContext = generatedQuestions[currentQIdx].text;
-                        if (currentQHistory.length > 0) {
-                            prevContext = `Original Question: ${generatedQuestions[currentQIdx].text}\n` +
-                                          `Past Interaction:\n` + currentQHistory.join("\n");
-                        }
+                        // prevContext is just the question text — full history is passed separately as role messages
                         const result = await generateConversationalNext(
-                            prevContext,
+                            generatedQuestions[currentQIdx].text,
                             transcript,
-                            "Thank the user for their time and say the interview is complete."
+                            "Thank the user for their time and say the interview is complete.",
+                            conversationHistory // pass full session memory
                         );
                         
-                        // Log this interaction so the LLM remembers it if we stay on this question
-                        currentQHistory.push(`Candidate: ${transcript}`);
-                        currentQHistory.push(`Interviewer: ${result.response}`);
+                        // Append this wrap-up turn to session memory too
+                        conversationHistory.push({ role: "user", content: `[Q: ${generatedQuestions[currentQIdx].text}] ${transcript}` });
+                        conversationHistory.push({ role: "assistant", content: result.response });
                         
                         if (result.action === 'previous') {
                             if (currentQIdx > 0) {
@@ -3280,6 +3496,14 @@ Output ONLY valid JSON, no markdown:
             
             // Hard teardown of all audio contexts so microphone releases
             if (dgAudioCtx && dgAudioCtx.state !== 'closed') { dgAudioCtx.close().catch(() => {}); }
+            if (globalMicStream) {
+                globalMicStream.getTracks().forEach(t => t.stop());
+                globalMicStream = null;
+            }
+            if (bargeInCtx && bargeInCtx.state !== 'closed') {
+                bargeInCtx.close().catch(()=>{});
+                bargeInCtx = null;
+            }
             callActive = false;
             // Lock out the interface entirely
             document.getElementById('startCallBtn').disabled = true;

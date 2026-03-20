@@ -2,7 +2,7 @@
 
 This document outlines the refactored system architecture of the standalone AI Interviewer microservice, the step-by-step instructions for integrating it into the `hr-solution` frontend, the potential risks to mitigate, and a comprehensive summary of the system improvements implemented today.
 
-## 1. Integration Blueprint
+## Integration Blueprint
 
 **The Pre-Interview Stage**
 Before the candidate even joins the screen, your `hr-solution` backend or database will trigger a request to `POST /api/v1/generate-questions` with the Job Description. You will save those 6 JSON questions into your database for that specific interview session.

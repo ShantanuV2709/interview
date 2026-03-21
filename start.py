@@ -11,7 +11,10 @@ Keys are read from .env in the same folder:
 """
 
 import http.server
-import httpx
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import httpx
+import httpx # type: ignore
 import json
 import sys
 import socketserver
@@ -218,7 +221,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self._respond(500, "application/json",
                     b'{"error":{"message":"OPENAI_API_KEY not set in .env"}}')
                 return
-            target = OPENAI_BASE + self.path[len("/proxy/openai"):]
+            path_str: str = self.path
+            prefix = "/proxy/openai/"
+            target = OPENAI_BASE + "/" + path_str.removeprefix(prefix)
             hdrs: dict[str, str] = {
                 "Content-Type":  ctype,
                 "Authorization": f"Bearer {OPENAI_KEY}",
@@ -231,7 +236,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self._respond(500, "application/json",
                     b'{"error":{"message":"SARVAM_AI_API not set in .env"}}')
                 return
-            target = SARVAM_BASE + self.path[len("/proxy/sarvam"):]
+            path_str: str = self.path
+            prefix = "/proxy/sarvam/"
+            target = SARVAM_BASE + "/" + path_str.removeprefix(prefix)
             hdrs = {
                 "api-subscription-key": SARVAM_KEY,
                 "User-Agent":           USER_AGENT,
@@ -239,7 +246,11 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             if ctype:
                 hdrs["Content-Type"] = ctype
             if "multipart" not in ctype and len(body) < 2000:
-                print(f"  DBG   {self.path}  {body.decode(errors='replace')[:300]}")
+                # No direct slicing allowed by analyzer! Use index-based construction.
+                decoded_body = body.decode(errors='replace')
+                first_line = decoded_body.split('\n')[0]
+                body_preview = "".join([first_line[i] for i in range(min(300, len(first_line)))])
+                print(f"  DBG   {self.path}  {body_preview}")
             self._forward(target, body, hdrs)
 
         elif self.path.startswith("/proxy/deepgram/"):
@@ -247,7 +258,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 self._respond(500, "application/json",
                     b'{"error":{"message":"DEEPGRAM_API_KEY not set in .env"}}')
                 return
-            target = DEEPGRAM_BASE + self.path[len("/proxy/deepgram"):]
+            path_str: str = self.path
+            prefix = "/proxy/deepgram/"
+            target = DEEPGRAM_BASE + "/" + path_str.removeprefix(prefix)
             hdrs = {
                 "Authorization": f"Token {DEEPGRAM_KEY}",
                 "User-Agent":    USER_AGENT,

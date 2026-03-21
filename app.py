@@ -5,8 +5,9 @@ import asyncio
 import base64
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
-from fastapi.responses import JSONResponse, Response as FastAPIResponse
+from fastapi.responses import JSONResponse, Response as FastAPIResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import httpx
 from dotenv import load_dotenv
 
@@ -32,15 +33,33 @@ app.add_middleware(
 # Persistent HTTP Client
 http_client = httpx.AsyncClient(timeout=60.0)
 
+# Serve Static Files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def read_index():
+    return FileResponse('sarvam_demo.html')
+
+@app.get("/login")
+async def read_login():
+    return FileResponse('login.html')
+
 # Optional Brain Module Hook
 try:
-    from openai_brain import brain
+    from openai_brain import brain, brain_ws_handler
     BRAIN_ENABLED = True
 except ImportError:
     BRAIN_ENABLED = False
     class _BrainStub:
         def record(self, *a, **kw): pass
+        async def start_periodic_analysis(self): pass
     brain = _BrainStub()
+    async def brain_ws_handler(*a, **kw): pass
+
+@app.on_event("startup")
+async def startup_event():
+    if BRAIN_ENABLED:
+        asyncio.create_task(brain.start_periodic_analysis())
 
 
 from pydantic import BaseModel
@@ -54,6 +73,7 @@ class GenerateRequest(BaseModel):
     job_title: str = "Software Engineer"
     job_description: str = ""
     experience: str = "Junior"
+    num_questions: int = 6
 
 class TTSRequest(BaseModel):
     text: str = ""
@@ -91,7 +111,7 @@ Your task is to generate interview questions from a job description.
 Role: {payload_data.job_title}
 Experience Level: {payload_data.experience}
 
-Return EXACTLY 6 questions in valid JSON format.
+Return EXACTLY {payload_data.num_questions} questions in valid JSON format.
 Include a mix of technical coding questions, architecture/system design, and behavioral questions.
 
 Output ONLY valid JSON like this:
@@ -116,10 +136,14 @@ Output ONLY valid JSON like this:
         json=payload
     )
     
-    if resp.status_code != 200:
-        raise HTTPException(status_code=resp.status_code, detail=resp.text)
-        
-    return resp.json()
+    openai_data = resp.json()
+    try:
+        content = openai_data["choices"][0]["message"]["content"]
+        result = json.loads(content)
+        result["usage"] = openai_data.get("usage", {})
+        return result
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse OpenAI response: {str(e)}")
 
 @app.post("/api/v1/stt")
 async def stt_endpoint(request: Request):
@@ -223,6 +247,55 @@ async def tts_endpoint_get(text: str = Query(default=None)):
         text = "This is a default test string."
         
     return await tts_endpoint(TTSRequest(text=text))
+
+@app.api_route("/proxy/openai/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def proxy_openai(path: str, request: Request):
+    if not OPENAI_KEY:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured.")
+    url = f"https://api.openai.com/{path}"
+    body = await request.body()
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in ["host", "authorization"]}
+    headers["Authorization"] = f"Bearer {OPENAI_KEY}"
+    resp = await http_client.request(request.method, url, content=body, headers=headers, params=request.query_params)
+    return FastAPIResponse(content=resp.content, status_code=resp.status_code, headers=dict(resp.headers))
+
+@app.api_route("/proxy/sarvam/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def proxy_sarvam(path: str, request: Request):
+    if not SARVAM_KEY:
+        raise HTTPException(status_code=500, detail="SARVAM_AI_API not configured.")
+    url = f"https://api.sarvam.ai/{path}"
+    body = await request.body()
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in ["host", "api-subscription-key"]}
+    headers["api-subscription-key"] = SARVAM_KEY
+    resp = await http_client.request(request.method, url, content=body, headers=headers, params=request.query_params)
+    return FastAPIResponse(content=resp.content, status_code=resp.status_code, headers=dict(resp.headers))
+
+@app.api_route("/proxy/deepgram/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def proxy_deepgram(path: str, request: Request):
+    if not DEEPGRAM_KEY:
+        raise HTTPException(status_code=500, detail="DEEPGRAM_API_KEY not configured.")
+    url = f"https://api.deepgram.com/{path}"
+    body = await request.body()
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in ["host", "authorization"]}
+    headers["Authorization"] = f"Token {DEEPGRAM_KEY}"
+    resp = await http_client.request(request.method, url, content=body, headers=headers, params=request.query_params)
+    return FastAPIResponse(content=resp.content, status_code=resp.status_code, headers=dict(resp.headers))
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FastAPIResponse(status_code=204)
+
+@app.get("/deepgram-key")
+async def get_deepgram_key():
+    return {"key": DEEPGRAM_KEY}
+
+@app.websocket("/ws/v1/brain")
+async def brain_websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    if BRAIN_ENABLED:
+        await brain_ws_handler(websocket)
+    else:
+        await websocket.close(code=1000)
 
 @app.post("/api/v1/llm-turn")
 async def llm_turn_endpoint(payload_data: LLMTurnRequest):
@@ -598,7 +671,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
                 
                 # Stream from OpenAI and pipe to Sarvam TTS
-                buffer = ""
+                buffer: str = ""
                 async with http_client.stream(
                     "POST", "https://api.openai.com/v1/chat/completions",
                     headers={"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"},

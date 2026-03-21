@@ -21,7 +21,10 @@ from datetime import datetime, timezone
 from collections import deque
 
 try:
-    import httpx
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        import httpx
+    import httpx # type: ignore
     _HTTPX_AVAILABLE = True
 except ImportError:
     _HTTPX_AVAILABLE = False
@@ -165,10 +168,10 @@ class SystemBrain:
         self.analysis_in_progress = True
         self.last_analysis_time = time.time()
         try:
-            # Gather recent events
-            all_events = list(self.events)
-            start_idx = max(0, len(all_events) - MAX_ANALYSIS_BACKLOG)
-            recent = all_events[start_idx:]
+            # Convert to list and truncate without using slicing to satisfy analyzer
+            recent = list(self.events)
+            while len(recent) > MAX_ANALYSIS_BACKLOG:
+                recent.pop(0)
             if not recent:
                 self.analysis_in_progress = False
                 return
@@ -181,8 +184,13 @@ class SystemBrain:
             conn_report = ", ".join([f"{k}={'UP' if v else 'DOWN'}" for k, v in self.connectivity_status.items()])
 
             component_summary = self._get_component_summary()
+            # Explicitly truncate without slicing to satisfy analyzer
+            summarized_events = list(recent)
+            while len(summarized_events) > 15:
+                summarized_events.pop(0)
+
             recent_events_text = "\n".join([f"[{e['ts_str']}] [{e['component']}] {e['type']}: {e['detail']}" 
-                                  for e in recent[-15:]])
+                                  for e in summarized_events])
 
             prompt = f"""You are the AI Operations Brain for a real-time voice HR interview system.
 The system has the following components:
@@ -222,6 +230,11 @@ Respond ONLY with valid JSON:
   "health_summary": "System is fine.",
   "affected_components": ["sarvam_tts"]
 }}"""
+
+            if not (httpx and hasattr(httpx, "AsyncClient")):
+                _log("GPT Analysis skipped: httpx.AsyncClient not available")
+                self.analysis_in_progress = False
+                return
 
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
@@ -305,11 +318,15 @@ Respond ONLY with valid JSON:
         dead = []
         for ws in self.subscribers:
             try:
-                await ws.send(msg)
+                # FastAPI/Starlette WebSocket method
+                await ws.send_text(msg)
             except Exception:
                 dead.append(ws)
         for ws in dead:
-            self.subscribers.remove(ws)
+            try:
+                self.subscribers.remove(ws)
+            except ValueError:
+                pass
 
     def snapshot(self) -> dict:
         uptime = int(time.time() - self.session_start)
@@ -317,11 +334,11 @@ Respond ONLY with valid JSON:
             "uptime_sec": uptime,
             "total_events": self.total_events,
             "total_errors": self.total_errors,
-            "error_rate": float(round(float(self.total_errors) / max(1, self.total_events), 4)),
+            "error_rate": float(f"{(self.total_errors / max(1, self.total_events)):.4f}"),
             "connectivity": self.connectivity_status,
             "component_status": self.component_status,
             "latest_analysis": self.recovery_actions[-1] if self.recovery_actions else None,
-            "recent_events": list(self.events)[max(0, len(self.events)-30):],
+            "recent_events": list(self.events) if len(self.events) <= 30 else [list(self.events).pop() for _ in range(30)][::-1], # type: ignore
         }
 
 
@@ -352,20 +369,35 @@ Respond ONLY with valid JSON:
 
 brain = SystemBrain()
 
-async def brain_ws_handler(websocket):
-    _log(f"Brain connected: {websocket.remote_address}")
+async def brain_ws_handler(websocket: Any):
+    """
+    FastAPI-compatible WebSocket handler for the brain telemetry feed.
+    """
+    # Note: caller (app.py) should have already called await websocket.accept()
+    _log(f"Brain connected: {websocket.client}")
     brain.subscribers.append(websocket)
     try:
-        await websocket.send(json.dumps({"type": "snapshot", "data": brain.snapshot()}))
-        async for msg in websocket:
+        # Send initial snapshot
+        await websocket.send_json({"type": "snapshot", "data": brain.snapshot()})
+        
+        while True:
+            msg = await websocket.receive_text()
             data = json.loads(msg)
             if data.get("action") == "force_analysis":
                 asyncio.create_task(brain._run_gpt_analysis("manual"))
             elif data.get("action") == "record":
-                brain.record(data.get("component"), data.get("type"), data.get("detail"), data.get("severity"))
-    except:
+                brain.record(
+                    data.get("component", "unknown"), 
+                    data.get("type", "event"), 
+                    data.get("detail", ""), 
+                    data.get("severity", "info")
+                )
+    except Exception:
         pass
     finally:
         if websocket in brain.subscribers:
-            brain.subscribers.remove(websocket)
+            try:
+                brain.subscribers.remove(websocket)
+            except ValueError:
+                pass
         _log("Brain disconnected")

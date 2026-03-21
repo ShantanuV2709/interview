@@ -40,6 +40,7 @@ except ImportError as e:
     # Stub so code below still works even without the brain module
     class _BrainStub:
         def record(self, *a, **kw): pass
+        async def start_periodic_analysis(self): pass
     brain = _BrainStub()
     async def brain_ws_handler(ws): pass
 
@@ -102,7 +103,11 @@ async def sarvam_tts(text_segment: str, ws) -> None:
                 audio_bytes = base64.b64decode(audio_base64)
                 
                 # Send binary audio directly
-                await ws.send(audio_bytes)
+                try:
+                    await ws.send(audio_bytes)
+                except websockets.exceptions.ConnectionClosed:
+                    log("Client disconnected during TTS send. Aborting.")
+                    return
                 brain.record("sarvam_tts", "tts_request",
                              f"Sent {len(audio_bytes)} bytes for segment", "ok")
                 return  # success
@@ -249,6 +254,13 @@ Example: "I'm Divya, your interviewer for today! Now, back to our question —"
 → End with: [[OFF_TOPIC]]
 ──────────────────────────────
 
+THEY ASK WHAT THEIR OWN NAME IS (triggers: "what's my name", "do you know my name", "what did I say my name was", "what am I called")
+
+You collected their name in Phase 0 — it is in your conversation history. Use it warmly and redirect.
+Example: "You told me your name is Aryan — I haven't forgotten! Now, let's get back to the question:"
+→ End with: [[REPEAT]]
+──────────────────────────────
+
 THEY CHALLENGE YOUR IDENTITY (triggers: "you're an AI", "are you a bot", "you're ChatGPT")
 
 Don't flinch. Stay fully in character.
@@ -331,8 +343,12 @@ Next question: "{next_q_prompt}" """
     import re
     _tag_re = re.compile(r'\[\[.*?\]\]')
 
-    # LATENCY: interruptions only need local context, trim history aggressively
-    history_slice = history[-6:] if is_interruption else history[-24:]
+    # LATENCY: interruptions need local context, but NEVER forget Phase 0 (name collection at index 0 & 1)
+    if is_interruption:
+        history_slice = (history[:2] + history[-6:]) if len(history) > 6 else history
+    else:
+        history_slice = (history[:2] + history[-24:]) if len(history) > 24 else history
+
     max_tok = 80 if is_interruption else 200
 
     buffer = ""
@@ -371,20 +387,23 @@ Next question: "{next_q_prompt}" """
                 if line.startswith("data: ") and line.strip() != "data: [DONE]":
                     try:
                         data = json.loads(line[6:])
-                        content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        content = str(data.get("choices", [{}])[0].get("delta", {}).get("content", ""))
                         if content:
                             buffer += content
-                            await ws.send(json.dumps({"type": "token", "text": content}))
+                            try:
+                                await ws.send(json.dumps({"type": "token", "text": content}))
+                            except websockets.exceptions.ConnectionClosed:
+                                log("Client disconnected during streaming. Aborting.")
+                                tts_task.cancel()
+                                return
 
                             # Primary flush: hard sentence-ending punctuation
                             hard_end = any(p in content for p in [".", "?", "!", "\n"])
-                            # Secondary flush: comma/semicolon after min 4 words so audio starts extremely fast
+                            # Secondary flush: soft pause with enough words to sound like a natural full thought
                             word_count = len(buffer.split())
-                            soft_pause = any(p in content for p in [",", ";", "—"]) and word_count >= 4
-                            # Overflow flush: prevent silent gaps on long unpunctuated text
-                            overflow = word_count >= 12
-
-                            if hard_end or soft_pause or overflow:
+                            soft_pause = any(p in content for p in [",", ";", "—", ":"]) and word_count >= 8
+                            
+                            if hard_end or soft_pause:
                                 sentence = buffer.strip()
                                 buffer = ""
                                 if sentence:
@@ -453,7 +472,7 @@ async def handler(websocket):
                 data = json.loads(msg)
                 action = data.get("action")
                 if action == "ask":
-                    history = data.get("history", [])
+                    history: list = data.get("history", [])
                     is_interruption = data.get("isInterruption", False)
                     await openai_stream(data.get("prev", ""), data.get("transcript", ""), data.get("nextQ", ""), websocket, history=history, is_interruption=is_interruption)
                     await websocket.send(json.dumps({"type": "done"}))
@@ -469,7 +488,7 @@ async def handler(websocket):
 
 async def main():
     log("Logic server running on ws://127.0.0.1:3002")
-    brain.record("websocket_server", "startup", f"OpenAI={OPENAI_KEY[:4]}... Deepgram={DEEPGRAM_KEY[:4]}... Sarvam={SARVAM_KEY[:4]}...", "ok")
+    brain.record("websocket_server", "startup", f"OpenAI={str(OPENAI_KEY)[:4]}... Deepgram={str(DEEPGRAM_KEY)[:4]}... Sarvam={str(SARVAM_KEY)[:4]}...", "ok")
     asyncio.create_task(warmup_dns())
     if BRAIN_ENABLED:
         brain.record("websocket_server", "listen", "Server started on ws://127.0.0.1:3002", "ok")

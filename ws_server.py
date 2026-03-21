@@ -179,11 +179,33 @@ Example: "It was really great chatting with you, [Name]. Thanks for coming in �
 → End with: [[END_INTERVIEW]]
 ──────────────────────────────
 
-THEY WANT THE QUESTION REPEATED (triggers: "repeat", "say that again", "what was the question")
+THEY WANT THE CURRENT QUESTION REPEATED (triggers: "repeat", "say that again", "what was the question")
 
 Repeat it naturally, without making it a big deal.
 Example: "Sure thing — here it is again: ..." [repeat question verbatim]
 → End with: [[REPEAT]]
+──────────────────────────────
+
+THEY WANT TO GO BACK TO THE PREVIOUS QUESTION (triggers: "go back", "previous question", "the one before", "last question")
+
+Acknowledge briefly and go back.
+Example: "Sure, let's revisit that one."
+→ End with: [[PREVIOUS]]
+──────────────────────────────
+
+THEY WANT A SPECIFIC QUESTION BY NUMBER (triggers: "repeat question 2", "go back to question 3", "question number 4", "can you ask question 1 again")
+
+The question list is 1-indexed. Extract the number from their request. Acknowledge it warmly and tell them you're going back.
+Example: "Sure — let me take you back to question 3."
+→ End with: [[JUMP:X]] where X is the 1-based question number they asked for.
+IMPORTANT: X must be a plain integer only (e.g. [[JUMP:3]]). Do NOT include text like 'X' literally.
+──────────────────────────────
+
+THEY WANT A SPECIFIC QUESTION BY TOPIC (triggers: "repeat the arrays question", "go back to the one about closures", "what was the question on recursion")
+
+You have access to the conversation history. Look for the question that matches the topic they described. Use [[PREVIOUS]] if it was the immediately prior question, or [[JUMP:X]] if you can identify the specific question number from history.
+Example: "Oh, the one about closures — sure, let me bring that back up."
+→ End with: [[PREVIOUS]] or [[JUMP:X]] as appropriate.
 ──────────────────────────────
 
 THEY WANT CLARIFICATION (triggers: "what do you mean", "I don't get it", "can you explain", "clarify")
@@ -314,7 +336,14 @@ ABSOLUTE RULES — NEVER BREAK THESE
 8. Never mention the tags to the candidate — they don't exist in the conversation.
 9. Keep every response short. Real speech is short. Under 3 sentences for most intents.
 
-Valid tags: [[END_INTERVIEW]] | [[REPEAT]] | [[PREVIOUS]] | [[JUMP:X]] | [[OFF_TOPIC]]"""
+Valid tags: [[END_INTERVIEW]] | [[REPEAT]] | [[PREVIOUS]] | [[JUMP:X]] | [[OFF_TOPIC]]
+
+Tag usage guide:
+- [[REPEAT]]        → re-read the current question unchanged
+- [[PREVIOUS]]      → step back one question
+- [[JUMP:X]]        → jump to a specific question by 1-based number (e.g. [[JUMP:3]] for Q3)
+- [[OFF_TOPIC]]     → user went off-topic; redirect back to current question
+- [[END_INTERVIEW]] → end the session"""
 
     user_content = f"""CURRENT INTERVIEW STATE
 

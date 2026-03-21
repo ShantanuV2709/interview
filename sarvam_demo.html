@@ -2138,8 +2138,10 @@
         // ─────────────────────────────────────────────────────────────────────────────
         let WS_BASE_URL;
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // Local dev: connect directly to ws_server.py on port 3002
             WS_BASE_URL = "ws://" + window.location.hostname + ":3002/";
         } else {
+            // Production: route through Nginx reverse proxy (port 443/8443) — no port in URL
             WS_BASE_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/brain/";
         }
 
@@ -3039,15 +3041,20 @@ Output ONLY valid JSON, no markdown:
                             isPlaying = false;
                             isTTSPlaying = false; // FIX: no chunks were played (e.g. TTS silent), still unmute
                             setWaveform(false);
+                            // Extract [[JUMP:X]] tag if present
+                            const jumpMatch = fullResponse.match(/\[\[JUMP:(\d+)\]\]/);
                             let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
+                                         (jumpMatch ? "jump" :
                                          (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
                                          (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
-                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
+                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"))));
+                            const jumpIndex = jumpMatch ? (parseInt(jumpMatch[1], 10) - 1) : -1; // convert 1-based → 0-based
                             
                             setTimeout(() => {
                                 if (ws) ws.onmessage = null; 
-                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
-                            }, 50); // LATENCY: tail-echo guard 200ms→50ms (done path)
+                                const cleanResponse = fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").replace(/\[\[JUMP:\d+\]\]/g, "").trim();
+                                resolve({ action, jumpIndex, response: cleanResponse });
+                            }, 50); // LATENCY: tail-echo guard
                         }
                     } else if (data.type === "error") {
                         window._abortWS = null;
@@ -3874,7 +3881,10 @@ Output ONLY valid JSON, no markdown:
         // ─────────────────────────────────────────────────────────────────────────────
         let brainWS = null;
         let brainReconnectTimer = null;
-        const BRAIN_WS_URL = WS_BASE_URL + 'brain';
+        // BRAIN_WS_URL: WS_BASE_URL already ends with '/' — for localhost append 'brain', for prod it's already /brain/
+        const BRAIN_WS_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? WS_BASE_URL + 'brain'
+            : WS_BASE_URL;
 
         const SEVERITY_STYLES = {
             ok:       { color: 'var(--teal)',  icon: '✅' },

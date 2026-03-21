@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sarvam Interview Demo — Cost Validator</title>
+    <title>Hybrid Model Interview Demo</title>
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
         rel="stylesheet">
@@ -1174,7 +1174,8 @@
                 </a>
                 <a class="nav-item" id="brain-nav" onclick="showSection('brain')" href="#">
                     <span class="nav-icon">🧠</span> 5. AI Brain
-                    <span class="nav-badge" id="brain-status-badge" style="background:var(--rose-dim);color:var(--rose);border-color:rgba(240,93,122,0.3);">OFF</span>
+                    <span class="nav-badge" id="brain-status-badge"
+                        style="background:var(--rose-dim);color:var(--rose);border-color:rgba(240,93,122,0.3);">OFF</span>
                 </a>
             </div>
 
@@ -1777,10 +1778,16 @@
                             </div>
 
                             <div class="field">
-                                <div id="volume-meter-container" style="display:none; align-items:center; gap:8px; margin-bottom:8px;">
-                                    <div style="font-size:9px; color:var(--muted); text-transform:uppercase; font-family:var(--mono);">Input Level:</div>
-                                    <div id="volume-meter" style="flex:1; height:4px; background:var(--surface3); border-radius:2px; overflow:hidden;">
-                                        <div id="volume-bar" style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;"></div>
+                                <div id="volume-meter-container"
+                                    style="display:none; align-items:center; gap:8px; margin-bottom:8px;">
+                                    <div
+                                        style="font-size:9px; color:var(--muted); text-transform:uppercase; font-family:var(--mono);">
+                                        Input Level:</div>
+                                    <div id="volume-meter"
+                                        style="flex:1; height:4px; background:var(--surface3); border-radius:2px; overflow:hidden;">
+                                        <div id="volume-bar"
+                                            style="height:100%; width:0%; background:var(--teal); transition:width 0.1s;">
+                                        </div>
                                     </div>
                                 </div>
                                 <label>Live Transcript (STT — Deepgram nova-2 ⚡)</label>
@@ -1794,7 +1801,8 @@
                             <div class="flex gap mt" style="display: none;">
                                 <button class="btn btn-teal btn-sm" id="startCallBtn" onclick="startInterview()">▶
                                     Start</button>
-                                <button class="btn btn-amber btn-sm" id="nextQBtn" onclick="nextQ()" disabled style="display: inline-block;">Next
+                                <button class="btn btn-amber btn-sm" id="nextQBtn" onclick="nextQ()" disabled
+                                    style="display: inline-block;">Next
                                     →</button>
                                 <button class="btn btn-rose btn-sm" id="endCallBtn" onclick="endInterview()" disabled>■
                                     End</button>
@@ -1947,7 +1955,8 @@
                                 (calculating...)</span>
                             <span class="cost-value retell" id="mCostRetell">$0.0000</span>
                         </div>
-                        <div class="cost-total" style="margin-top:6px; border-top:1px dashed var(--border); padding-top:6px;">
+                        <div class="cost-total"
+                            style="margin-top:6px; border-top:1px dashed var(--border); padding-top:6px;">
                             <span style="font-weight:700; color:var(--blue);">Sarvam Stack (Saarika + Bulbul)</span>
                             <span class="cost-value" id="mCostSarvamStack">$0.0000</span>
                         </div>
@@ -2024,7 +2033,9 @@
                 <div class="section-header">
                     <div class="section-eyebrow">AI System Brain</div>
                     <h1 class="section-title">OpenAI Process Monitor &amp; Regulator</h1>
-                    <p class="section-desc">GPT-4o watches every subsystem in real time — Deepgram STT/TTS, OpenAI LLM, WebSocket connections — and auto-analyses faults, suggests recovery actions, and keeps a live health feed.</p>
+                    <p class="section-desc">GPT-4o watches every subsystem in real time — Deepgram STT/TTS, OpenAI LLM,
+                        WebSocket connections — and auto-analyses faults, suggests recovery actions, and keeps a live
+                        health feed.</p>
                 </div>
 
                 <!-- Top status bar -->
@@ -2047,9 +2058,12 @@
                 <div class="card" style="margin-bottom:20px; padding:12px 20px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div style="display:flex; gap:20px;">
-                            <div id="conn-net"><span class="pill" style="padding:4px 8px; font-size:10px;">🌐 Internet: ...</span></div>
-                            <div id="conn-openai"><span class="pill" style="padding:4px 8px; font-size:10px;">🤖 OpenAI: ...</span></div>
-                            <div id="conn-deepgram"><span class="pill" style="padding:4px 8px; font-size:10px;">🎙️ Deepgram: ...</span></div>
+                            <div id="conn-net"><span class="pill" style="padding:4px 8px; font-size:10px;">🌐 Internet:
+                                    ...</span></div>
+                            <div id="conn-openai"><span class="pill" style="padding:4px 8px; font-size:10px;">🤖 OpenAI:
+                                    ...</span></div>
+                            <div id="conn-deepgram"><span class="pill" style="padding:4px 8px; font-size:10px;">🎙️
+                                    Deepgram: ...</span></div>
                         </div>
                         <div class="text-muted" style="font-size:10px;">External Connectivity Monitor</div>
                     </div>
@@ -2057,14 +2071,17 @@
 
                 <!-- Component health grid -->
                 <div class="card" style="margin-bottom:20px;">
-                    <div class="card-title">🔍 Component Health <span class="pill" id="brain-conn-pill" style="background:var(--rose-dim);color:var(--rose);">Disconnected</span></div>
+                    <div class="card-title">🔍 Component Health <span class="pill" id="brain-conn-pill"
+                            style="background:var(--rose-dim);color:var(--rose);">Disconnected</span></div>
                     <div id="brain-components" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <!-- Filled by JS -->
                         <div class="cost-row"><span class="cost-label">Connecting to brain...</span></div>
                     </div>
                     <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
-                        <button class="btn btn-ghost btn-sm" onclick="brainForceAnalysis()">🧠 Force GPT Analysis</button>
-                        <button class="btn btn-ghost btn-sm" onclick="brainRefreshSnapshot()">🔄 Refresh Snapshot</button>
+                        <button class="btn btn-ghost btn-sm" onclick="brainForceAnalysis()">🧠 Force GPT
+                            Analysis</button>
+                        <button class="btn btn-ghost btn-sm" onclick="brainRefreshSnapshot()">🔄 Refresh
+                            Snapshot</button>
                         <span class="text-muted" id="brain-last-ping">—</span>
                     </div>
                 </div>
@@ -2074,14 +2091,16 @@
                     <div class="card">
                         <div class="card-title">🤖 Latest GPT-4o Analysis</div>
                         <div id="brain-analysis-panel" style="font-size:12px;line-height:1.7;">
-                            <div class="text-muted">No analysis yet. Errors will trigger automatic analysis, or use the Force button.</div>
+                            <div class="text-muted">No analysis yet. Errors will trigger automatic analysis, or use the
+                                Force button.</div>
                         </div>
                     </div>
 
                     <!-- Live event stream -->
                     <div class="card">
                         <div class="card-title">📡 Live Event Stream</div>
-                        <div id="brain-event-log" style="max-height:360px;overflow-y:auto;font-size:10px;font-family:var(--mono);line-height:1.6;">
+                        <div id="brain-event-log"
+                            style="max-height:360px;overflow-y:auto;font-size:10px;font-family:var(--mono);line-height:1.6;">
                             <div class="text-muted">Waiting for events...</div>
                         </div>
                     </div>
@@ -2098,9 +2117,10 @@
 
         </main>
     </div>
-    
+
     <!-- Real-time Debug Overlay -->
-    <div id="dg-debug" style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.8); color:#fff; font-family:monospace; font-size:10px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); z-index:10000; pointer-events:none; display:flex; gap:15px;">
+    <div id="dg-debug"
+        style="position:fixed; bottom:10px; left:10px; background:rgba(0,0,0,0.8); color:#fff; font-family:monospace; font-size:10px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); z-index:10000; pointer-events:none; display:flex; gap:15px;">
         <div>KEY: <span id="dg-debug-key" style="color:var(--muted)">WAITING</span></div>
         <div>WS: <span id="dg-debug-status" style="color:var(--muted)">IDLE</span></div>
         <div>BUF: <span id="dg-debug-chars" style="color:var(--teal)">0 chars</span></div>
@@ -2160,7 +2180,7 @@
         let recordingStartTime = null;
         let currentAudio = null;
         let isTTSPlaying = false; // FIX: mute VAD while Emma is speaking
-        
+
         // VAD (Voice Activity Detection) state variables
         let vadAudioContext = null;
         let vadSource = null;
@@ -2178,7 +2198,7 @@
         let sttFallbackMode = false; // FIX: reset per-question, not sticky session-wide
 
         // Brain telemetry helper
-        function brainRecord(component, eventType, detail, severity='info') {
+        function brainRecord(component, eventType, detail, severity = 'info') {
             if (brainWS && brainWS.readyState === WebSocket.OPEN) {
                 brainWS.send(JSON.stringify({
                     action: "record",
@@ -2203,10 +2223,10 @@
             // VAD node
             if (vadNode) { vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
             // Shared audio source & context (dgAudioCtx replaces vadAudioContext)
-            if (dgSource) { 
-                dgSource.disconnect(); 
-                dgSource = null; 
-                if (window.sharedMicSource && window.bargeInAnl) { try { window.sharedMicSource.connect(window.bargeInAnl); } catch(e){} }
+            if (dgSource) {
+                dgSource.disconnect();
+                dgSource = null;
+                if (window.sharedMicSource && window.bargeInAnl) { try { window.sharedMicSource.connect(window.bargeInAnl); } catch (e) { } }
             }
             // Legacy cleanup
             if (vadSource) { vadSource.disconnect(); vadSource = null; }
@@ -2224,16 +2244,16 @@
                 if (n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
             });
             document.getElementById('section-' + id).classList.add('active');
-            
+
             if (id === 'brain' && (!brainWS || brainWS.readyState > 1)) {
                 brainConnect();
             }
-            
+
             // Auto-start interview logic
             if (id === 'interview' && !callActive) {
                 console.log('🚀 Auto-starting interview...');
                 brainRecord('interview', 'started', 'Auto-start triggered', 'info');
-                setTimeout(startInterview, 50); 
+                setTimeout(startInterview, 50);
             }
         }
 
@@ -2436,7 +2456,7 @@ Output ONLY valid JSON, no markdown:
         // ─────────────────────────────────────────────────────────────────────────────
         // SCREEN 2 — REAL SARVAM TTS + MIC RECORDING + REAL SARVAM STT
         // ─────────────────────────────────────────────────────────────────────────────
-        
+
         // ── BARGE-IN LOGIC ──
         let globalMicStream = null;
         let bargeInCtx = null;
@@ -2480,11 +2500,11 @@ Output ONLY valid JSON, no markdown:
                         loudFrames = 0;
                         return;
                     }
-                    
+
                     let rms = Math.sqrt(sumSq / f32.length);
-                    
+
                     // FIXED: RMS threshold lowered radically (0.02 down from 0.08) to trigger much easier
-                    if (rms > 0.02) { 
+                    if (rms > 0.02) {
                         loudFrames++;
                         if (loudFrames >= 2) { // 64ms of sustained speech rather than 160ms
                             console.log("💥 Barge-in! RMS vol:", rms.toFixed(3));
@@ -2497,7 +2517,7 @@ Output ONLY valid JSON, no markdown:
                         loudFrames = 0;
                     }
                 };
-            } catch(e) { console.warn("Barge-in init failed:", e); }
+            } catch (e) { console.warn("Barge-in init failed:", e); }
         }
 
         window._abortHTTPTTS = null;
@@ -2506,7 +2526,7 @@ Output ONLY valid JSON, no markdown:
         function abortEmmaTTS() {
             isBargeInTriggered = true;
             isTTSPlaying = false;
-            
+
             if (window._abortHTTPTTS) {
                 window._abortHTTPTTS();
                 window._abortHTTPTTS = null;
@@ -2526,7 +2546,7 @@ Output ONLY valid JSON, no markdown:
             if (!generatedQuestions.length) {
                 showToast('⚠️ Please generate questions first (Screen 1).', 'amber'); return;
             }
-            
+
             // Inject Phase 0 (Name Collection) as the very first question
             if (!generatedQuestions[0].isPhase0) {
                 generatedQuestions.unshift({
@@ -2543,9 +2563,9 @@ Output ONLY valid JSON, no markdown:
 
             document.getElementById('startCallBtn').disabled = true;
             document.getElementById('startCallBtn').innerHTML = 'Setting up mic...';
-            
+
             await initBargeIn();
-            
+
             document.getElementById('startCallBtn').innerHTML = 'Interview Active';
             document.getElementById('nextQBtn').disabled = false;
             document.getElementById('endCallBtn').disabled = false;
@@ -2637,7 +2657,7 @@ Output ONLY valid JSON, no markdown:
 
                 const data = await res.json();
                 const audioB64 = data.audios?.[0];
-                
+
                 if (!audioB64) {
                     throw new Error("Received empty or corrupt audio buffer");
                 }
@@ -2654,22 +2674,22 @@ Output ONLY valid JSON, no markdown:
                     const timer = setTimeout(() => {
                         console.warn('⌛ TTS playback safety timeout reached');
                         isTTSPlaying = false;
-                        resolve(false); 
-                    }, 15000); 
-                    
+                        resolve(false);
+                    }, 15000);
+
                     isTTSPlaying = true; // FIX: mute VAD during playback
                     isBargeInTriggered = false; // Reset interrupt flag
-                    
+
                     // Hardware Grace Period to prevent audio 'pop' from self-interrupting
                     window.bargeInGraceActive = true;
-                    setTimeout(() => window.bargeInGraceActive = false, 500); 
+                    setTimeout(() => window.bargeInGraceActive = false, 500);
 
                     if (window.sharedAudioCtx && window.sharedAudioCtx.state === 'suspended') window.sharedAudioCtx.resume();
-                    
+
                     window._abortHTTPTTS = () => {
                         clearTimeout(timer);
                         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-                        resolve(true); 
+                        resolve(true);
                     };
 
                     currentAudio = new Audio(`data:audio/wav;base64,${audioB64}`);
@@ -2677,27 +2697,27 @@ Output ONLY valid JSON, no markdown:
                         const playStart = performance.now();
                         console.log(`[LATENCY] Q${currentQIdx + 1} Audio Playback Started: ${(playStart - fetchEnd).toFixed(1)}ms after fetch`);
                     };
-                    currentAudio.onended = () => { 
+                    currentAudio.onended = () => {
                         window._abortHTTPTTS = null;
                         clearTimeout(timer);
                         isTTSPlaying = false; // FIX: unmute VAD after playback
                         console.log(`[LATENCY] Q${currentQIdx + 1} Audio Playback Finished. Waiting for sync buffer...`);
                         setTimeout(() => {
                             console.log(`[LATENCY] Q${currentQIdx + 1} Sync Buffer Done. Starting Recording.`);
-                            resolve(true); 
+                            resolve(true);
                         }, 50); // LATENCY: reduced 200ms→50ms post-TTS handoff gap
                     };
-                    currentAudio.onerror = (e) => { 
+                    currentAudio.onerror = (e) => {
                         clearTimeout(timer);
                         isTTSPlaying = false;
                         console.error('Audio object error:', e);
-                        resolve(false); 
+                        resolve(false);
                     };
                     currentAudio.play().catch(err => {
                         clearTimeout(timer);
                         isTTSPlaying = false;
                         console.warn('🔇 Audio play blocked or failed:', err);
-                        resolve(false); 
+                        resolve(false);
                     });
                 });
 
@@ -2732,7 +2752,7 @@ Output ONLY valid JSON, no markdown:
                 dgAudioCtx = window.sharedAudioCtx;
                 if (dgAudioCtx.state === 'suspended') await dgAudioCtx.resume();
                 console.log(`🎙 Browser Audio Sample Rate: ${dgAudioCtx.sampleRate}Hz`);
-                
+
                 dgSource = window.sharedMicSource;
 
                 // ── VAD setup ──
@@ -2754,7 +2774,7 @@ Output ONLY valid JSON, no markdown:
                 if (!sttFallbackMode) {
                     return new Promise((resolve) => {
                         document.getElementById('callStatusText').textContent = 'Connecting to STT Proxy...';
-                        
+
                         dgSocket = new WebSocket(WS_BASE_URL);
                         dgSocket.binaryType = 'arraybuffer';
 
@@ -2763,7 +2783,7 @@ Output ONLY valid JSON, no markdown:
                                 console.warn('⌛ STT Proxy connection timed out — enabling fallback');
                                 sttFallbackMode = true;
                                 document.getElementById('dg-debug-status').textContent = 'TIMEOUT';
-                                resolve(); 
+                                resolve();
                             }
                         }, 5000);
 
@@ -2771,9 +2791,9 @@ Output ONLY valid JSON, no markdown:
                             clearTimeout(dgTimeout);
                             console.log('✅ Connected to STT Proxy');
                             // SEND THE ACTUAL SAMPLE RATE TO THE PROXY
-                            dgSocket.send(JSON.stringify({ 
-                                action: 'stt', 
-                                sample_rate: dgAudioCtx.sampleRate 
+                            dgSocket.send(JSON.stringify({
+                                action: 'stt',
+                                sample_rate: dgAudioCtx.sampleRate
                             }));
                             document.getElementById('callStatusText').textContent = '🎙 Recording with Deepgram...';
                             document.getElementById('dg-debug-status').textContent = 'CONNECTED';
@@ -2786,8 +2806,8 @@ Output ONLY valid JSON, no markdown:
                             document.getElementById('dg-debug-status').textContent = 'CLOSED (' + event.code + ')';
                             document.getElementById('dg-debug-status').style.color = 'var(--rose)';
                             // Code 1000 = Normal, 1005 = No Status (often on clean end)
-                            if (event.code !== 1000 && event.code !== 1005) { 
-                                sttFallbackMode = true; 
+                            if (event.code !== 1000 && event.code !== 1005) {
+                                sttFallbackMode = true;
                                 console.log('🔄 Switching to STT Fallback Mode (HTTP POST)');
                             }
                         };
@@ -2836,7 +2856,7 @@ Output ONLY valid JSON, no markdown:
                                                 console.log('🗣 Verbal Command Detected in full transcript:', liveTranscript);
                                                 showToast('🗣 Command detected: Moving to next...', 'teal');
                                                 nextQ();
-                                                return; 
+                                                return;
                                             }
                                         }
                                         document.getElementById('liveTranscript').innerHTML = `
@@ -2846,7 +2866,7 @@ Output ONLY valid JSON, no markdown:
                                         document.getElementById('dg-debug-chars').textContent = liveTranscript.length + ' chars';
                                     }
                                 }
-                            } catch(e) {}
+                            } catch (e) { }
                         };
                         dgSocket.onerror = (err) => {
                             console.error('Deepgram WS error:', err);
@@ -2874,16 +2894,16 @@ Output ONLY valid JSON, no markdown:
         // Helper to separate VAD logic so it can be called from both paths
         // FIX: isTTSPlaying gate prevents Emma's own voice from triggering VAD
         function setupVAD(analyser, silenceStart, hasSpoken, isInterruption = false) {
-            vadNode.onaudioprocess = function() {
+            vadNode.onaudioprocess = function () {
                 // FIX: Completely ignore mic input while TTS is playing to prevent echo-trigger
                 if (isTTSPlaying) return;
 
                 let array = new Uint8Array(analyser.frequencyBinCount);
                 analyser.getByteFrequencyData(array);
                 let sum = 0;
-                for(let i = 0; i < array.length; i++) sum += array[i];
+                for (let i = 0; i < array.length; i++) sum += array[i];
                 const avg = sum / array.length;
-                
+
                 const volBar = document.getElementById('volume-bar');
                 if (volBar) {
                     const pct = Math.min(100, (avg / 60) * 100);
@@ -2899,21 +2919,21 @@ Output ONLY valid JSON, no markdown:
                     return;
                 }
 
-                    // FIX: speech threshold raised to ignore background noise
-                    if (avg > 18) {
-                        silenceStart = Date.now();
-                        if (!hasSpoken) {
-                            console.log('🎤 VAD: Speech detected');
-                            hasSpoken = true;
-                        }
-                    } else {
-                        const silenceLimit = isInterruption ? 700 : 1000; // LATENCY: ultra-snappy natural conversational flow
-                        if (hasSpoken && (Date.now() - silenceStart > silenceLimit)) {
+                // FIX: speech threshold raised to ignore background noise
+                if (avg > 18) {
+                    silenceStart = Date.now();
+                    if (!hasSpoken) {
+                        console.log('🎤 VAD: Speech detected');
+                        hasSpoken = true;
+                    }
+                } else {
+                    const silenceLimit = isInterruption ? 700 : 1000; // LATENCY: ultra-snappy natural conversational flow
+                    if (hasSpoken && (Date.now() - silenceStart > silenceLimit)) {
                         const spokenDuration = Date.now() - recordingStartTime;
                         const minSpeakTime = isInterruption ? 400 : 1000;
-                        
+
                         if (spokenDuration > minSpeakTime) {
-                            console.log(`🔇 VAD: Silence detected (${silenceLimit/1000}s), submitting...`);
+                            console.log(`🔇 VAD: Silence detected (${silenceLimit / 1000}s), submitting...`);
                             hasSpoken = false;
                             nextQ();
                         } else {
@@ -2928,9 +2948,9 @@ Output ONLY valid JSON, no markdown:
         let persistentAudioCtx = null;
         async function generateConversationalNext(prevQ, userAns, nextQObjOrInstruction, history = [], isInterruption = false) {
             document.getElementById('callStatusText').textContent = 'Thinking...';
-            document.getElementById('currentQ').innerHTML = ''; 
+            document.getElementById('currentQ').innerHTML = '';
             document.getElementById('callDot').className = 'status-dot speaking';
-            
+
             if (!persistentAudioCtx) {
                 persistentAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -2944,11 +2964,11 @@ Output ONLY valid JSON, no markdown:
                 let isPlaying = false;
                 let isDone = false;
                 let nextPlayTime = 0;
-                let sourceNodes = []; 
+                let sourceNodes = [];
                 let pendingChunks = 0;
-                
+
                 window._abortWS = () => {
-                    if (sourceNodes && sourceNodes.length) { sourceNodes.forEach(s => { try { s.stop(); } catch(e){} }); sourceNodes = []; }
+                    if (sourceNodes && sourceNodes.length) { sourceNodes.forEach(s => { try { s.stop(); } catch (e) { } }); sourceNodes = []; }
                     if (ws) { ws.onmessage = null; ws.close(1000); }
                     window._abortWS = null;
                     resolve({ action: "interrupted", response: fullResponse.replace("[[END_INTERVIEW]]", "").trim() });
@@ -2961,14 +2981,14 @@ Output ONLY valid JSON, no markdown:
                     audioPlaybackQueue = audioPlaybackQueue.then(async () => {
                         try {
                             if (arrayBuffer.byteLength === 0) { pendingChunks--; return; }
-                            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0)); 
+                            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
                             const source = audioCtx.createBufferSource();
                             source.buffer = audioBuffer;
                             source.connect(audioCtx.destination);
-                            
+
                             const currentTime = audioCtx.currentTime;
                             if (nextPlayTime < currentTime) nextPlayTime = currentTime;
-                            
+
                             window.bargeInGraceActive = true;
                             setTimeout(() => window.bargeInGraceActive = false, 500);
 
@@ -2979,7 +2999,7 @@ Output ONLY valid JSON, no markdown:
                                 isPlaying = true;
                             }
                             sourceNodes.push(source);
-                            
+
                             source.onended = () => {
                                 pendingChunks--;
                                 if (isDone && pendingChunks === 0) {
@@ -2987,40 +3007,40 @@ Output ONLY valid JSON, no markdown:
                                     isPlaying = false;
                                     isTTSPlaying = false; // FIX: unmute VAD once last TTS chunk finishes
                                     setWaveform(false);
-                                    
-                                    let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
-                                                 (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
-                                                 (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
-                                                 (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
-                                    
+
+                                    let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" :
+                                        (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                            (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
+                                                (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next")));
+
                                     setTimeout(() => {
-                                        if (ws) ws.onmessage = null; 
+                                        if (ws) ws.onmessage = null;
                                         resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
                                     }, 50); // LATENCY: tail-echo guard 200ms→50ms
                                 }
                             };
-                            
+
                             nextPlayTime += audioBuffer.duration;
                         } catch (e) {
-                             pendingChunks--;
-                             console.error("Audio Decode Error:", e);
-                             if (isDone && pendingChunks === 0) {
-                                 window._abortWS = null;
-                                 let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
-                                             (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
-                                             (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
-                                 resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
-                             }
+                            pendingChunks--;
+                            console.error("Audio Decode Error:", e);
+                            if (isDone && pendingChunks === 0) {
+                                window._abortWS = null;
+                                let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" :
+                                    (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                        (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"));
+                                resolve({ action, response: fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").trim() });
+                            }
                         }
                     });
                 }
-                
+
                 const onMessage = (msg) => {
                     if (msg.data instanceof ArrayBuffer) {
                         playAudioChunk(msg.data);
                         return;
                     }
-                
+
                     const data = JSON.parse(msg.data);
                     if (data.type === "token") {
                         fullResponse += data.text;
@@ -3043,15 +3063,15 @@ Output ONLY valid JSON, no markdown:
                             setWaveform(false);
                             // Extract [[JUMP:X]] tag if present
                             const jumpMatch = fullResponse.match(/\[\[JUMP:(\d+)\]\]/);
-                            let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" : 
-                                         (jumpMatch ? "jump" :
-                                         (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
-                                         (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
-                                         (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"))));
+                            let action = fullResponse.includes("[[END_INTERVIEW]]") ? "end" :
+                                (jumpMatch ? "jump" :
+                                    (fullResponse.includes("[[PREVIOUS]]") ? "previous" :
+                                        (fullResponse.includes("[[OFF_TOPIC]]") ? "offtopic" :
+                                            (fullResponse.includes("[[REPEAT]]") || (fullResponse.toLowerCase().includes("repeat") && fullResponse.length < 200) ? "repeat" : "next"))));
                             const jumpIndex = jumpMatch ? (parseInt(jumpMatch[1], 10) - 1) : -1; // convert 1-based → 0-based
-                            
+
                             setTimeout(() => {
-                                if (ws) ws.onmessage = null; 
+                                if (ws) ws.onmessage = null;
                                 const cleanResponse = fullResponse.replace("[[END_INTERVIEW]]", "").replace("[[REPEAT]]", "").replace("[[PREVIOUS]]", "").replace("[[OFF_TOPIC]]", "").replace(/\[\[JUMP:\d+\]\]/g, "").trim();
                                 resolve({ action, jumpIndex, response: cleanResponse });
                             }, 50); // LATENCY: tail-echo guard
@@ -3092,7 +3112,7 @@ Output ONLY valid JSON, no markdown:
                     conversationalWS = ws;
                     ws.onopen = sendAsk;
                     ws.onmessage = onMessage;
-                    
+
                     setTimeout(() => {
                         if (ws.readyState === WebSocket.CONNECTING) {
                             console.warn('⌛ Logic server connection slow/stuck...');
@@ -3100,7 +3120,7 @@ Output ONLY valid JSON, no markdown:
                         }
                     }, 1000);
                 }
-                
+
                 ws.onerror = (err) => {
                     console.error("WebSocket connection error:", err);
                     showToast('Logic server connection failed. Retrying interview turn...', 'rose');
@@ -3144,8 +3164,8 @@ Output ONLY valid JSON, no markdown:
                         dgSocket.send(JSON.stringify({ type: 'CloseStream' }));
                         await new Promise(resolve => setTimeout(resolve, 350)); // Wait for final transcript
                     }
-                    if (dgProcessor) { try { vadAnalyserNode.disconnect(dgProcessor); } catch(e){} dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
-                    if (vadNode) { try { vadAnalyserNode.disconnect(vadNode); } catch(e){} vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                    if (dgProcessor) { try { vadAnalyserNode.disconnect(dgProcessor); } catch (e) { } dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                    if (vadNode) { try { vadAnalyserNode.disconnect(vadNode); } catch (e) { } vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
                     dgSource = null;
                     if (dgSocket) { dgSocket.close(1000); dgSocket = null; }
 
@@ -3156,7 +3176,7 @@ Output ONLY valid JSON, no markdown:
                         const durationSec = (Date.now() - recordingStartTime) / 1000;
                         try {
                             interruptTranscript = await transcribeAnswer(durationSec);
-                        } catch(e) {
+                        } catch (e) {
                             console.error('[INTERRUPTION] Batch STT fallback error:', e);
                             interruptTranscript = '[No speech detected]';
                         }
@@ -3167,11 +3187,11 @@ Output ONLY valid JSON, no markdown:
                     const interruptResult = await generateConversationalNext(
                         generatedQuestions[currentQIdx].dynamicText || generatedQuestions[currentQIdx].text,
                         interruptTranscript,
-                        generatedQuestions[Math.min(currentQIdx+1, generatedQuestions.length-1)].text,
+                        generatedQuestions[Math.min(currentQIdx + 1, generatedQuestions.length - 1)].text,
                         conversationHistory,
                         true // → short history, 80 token cap, fast response
                     );
-                    conversationHistory.push({ role: 'user', content: `[Interruption Q${currentQIdx+1}] ${interruptTranscript}` });
+                    conversationHistory.push({ role: 'user', content: `[Interruption Q${currentQIdx + 1}] ${interruptTranscript}` });
                     conversationHistory.push({ role: 'assistant', content: interruptResult.response });
 
                     // Process the LLM's response to the interruption based on intent
@@ -3184,8 +3204,8 @@ Output ONLY valid JSON, no markdown:
                         document.getElementById('callStatusText').textContent = '🎙 Listening for your query...';
                         // Tear down old recording session before starting the interruption session
                         if (dgSocket && dgSocket.readyState === WebSocket.OPEN) { dgSocket.close(1000); dgSocket = null; }
-                        if (dgProcessor) { try { window.sharedMicSource.disconnect(dgProcessor); } catch(e){} dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
-                        if (vadNode) { try { if(vadAnalyserNode) vadAnalyserNode.disconnect(vadNode); } catch(e){} vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                        if (dgProcessor) { try { window.sharedMicSource.disconnect(dgProcessor); } catch (e) { } dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                        if (vadNode) { try { if (vadAnalyserNode) vadAnalyserNode.disconnect(vadNode); } catch (e) { } vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
                         liveTranscript = ''; // ensure clean slate
                         isInInterruptionMode = true; // Stay locked in interruption mode!
                         isNavigating = false;
@@ -3217,7 +3237,7 @@ Output ONLY valid JSON, no markdown:
                     document.getElementById('callStatusText').textContent = '🎙 Recording your answer...';
                     isNavigating = false;
                     startRecording(); // normal recording, question flow continues
-                } catch(e) {
+                } catch (e) {
                     console.error('Interruption handler error:', e);
                     isNavigating = false;
                     startRecording();
@@ -3229,7 +3249,7 @@ Output ONLY valid JSON, no markdown:
             try {
                 console.log('--- nextQ triggered ---');
                 document.getElementById('volume-meter-container').style.display = 'none';
-                
+
                 // Stop recording and transcribe before moving on
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                     const stopStart = performance.now();
@@ -3253,8 +3273,8 @@ Output ONLY valid JSON, no markdown:
                         await new Promise(resolve => setTimeout(resolve, 350)); // Wait for final transcript chunk over network
                     }
                     // Cleanup audio pipeline
-                    if (dgProcessor) { try { vadAnalyserNode.disconnect(dgProcessor); } catch(e){} dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
-                    if (vadNode) { try { vadAnalyserNode.disconnect(vadNode); } catch(e){} vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                    if (dgProcessor) { try { vadAnalyserNode.disconnect(dgProcessor); } catch (e) { } dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                    if (vadNode) { try { vadAnalyserNode.disconnect(vadNode); } catch (e) { } vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
                     dgSource = null;
                     dgAudioCtx = null;
                     if (dgSocket) { dgSocket.close(1000); dgSocket = null; }
@@ -3264,15 +3284,15 @@ Output ONLY valid JSON, no markdown:
                     if (!transcript || transcript === '') {
                         console.log('No live transcript — triggering batch STT fallback...');
                         document.getElementById('callStatusText').textContent = 'Falling back to batch STT...';
-                        try { 
-                            transcript = await transcribeAnswer(durationSec); 
-                        } catch (e) { 
+                        try {
+                            transcript = await transcribeAnswer(durationSec);
+                        } catch (e) {
                             console.error('STT Fallback Error:', e);
-                            transcript = '[No speech detected]'; 
+                            transcript = '[No speech detected]';
                         }
                     }
                     console.log(`Transcript choice: "${transcript}"`);
-                    const cost = durationSec * 0.0000716; 
+                    const cost = durationSec * 0.0000716;
                     sttSecCount += durationSec;
                     trackCost('stt', cost);
                     updateInterviewCostDisplay();
@@ -3284,22 +3304,22 @@ Output ONLY valid JSON, no markdown:
                     storeTranscript(currentQIdx, answeredQ, transcript);
                     document.getElementById('callStatusText').textContent =
                         `Q${currentQIdx + 1} transcribed (${durationSec.toFixed(1)}s · $${cost.toFixed(5)}) · Deepgram ⚡`;
-                    
+
                     if (currentQIdx + 1 < generatedQuestions.length) {
                         // prevContext is just the question text — full history is passed separately as role messages
-                        
+
                         const result = await generateConversationalNext(
-                            generatedQuestions[currentQIdx].text, 
-                            transcript, 
-                            generatedQuestions[currentQIdx+1].text,
+                            generatedQuestions[currentQIdx].text,
+                            transcript,
+                            generatedQuestions[currentQIdx + 1].text,
                             conversationHistory,
                             false // normal turn, not an interruption
                         );
-                        
+
                         // Append this turn to session-wide memory (role-based for OpenAI)
                         conversationHistory.push({ role: "user", content: `[Q: ${generatedQuestions[currentQIdx].text}] ${transcript}` });
                         conversationHistory.push({ role: "assistant", content: result.response });
-                        
+
                         if (result.action === 'interrupted') {
                             // Divya was cut off mid-response. Start listening for the user's query.
                             // DO NOT advance the question index.
@@ -3311,8 +3331,8 @@ Output ONLY valid JSON, no markdown:
                             document.getElementById('callStatusText').textContent = '🎙 Listening for your query...';
                             // Tear down old recording session before starting the interruption session
                             if (dgSocket && dgSocket.readyState === WebSocket.OPEN) { dgSocket.close(1000); dgSocket = null; }
-                            if (dgProcessor) { try { window.sharedMicSource.disconnect(dgProcessor); } catch(e){} dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
-                            if (vadNode) { try { if(vadAnalyserNode) vadAnalyserNode.disconnect(vadNode); } catch(e){} vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
+                            if (dgProcessor) { try { window.sharedMicSource.disconnect(dgProcessor); } catch (e) { } dgProcessor.disconnect(); dgProcessor.onaudioprocess = null; dgProcessor = null; }
+                            if (vadNode) { try { if (vadAnalyserNode) vadAnalyserNode.disconnect(vadNode); } catch (e) { } vadNode.disconnect(); vadNode.onaudioprocess = null; vadNode = null; }
                             liveTranscript = ''; // ensure clean slate
                             isInInterruptionMode = true; // route next nextQ() call through interruption handler
                             isNavigating = false;  // release lock so VAD-triggered nextQ() can fire
@@ -3325,7 +3345,7 @@ Output ONLY valid JSON, no markdown:
                                 currentQIdx--;
                             }
                             document.getElementById('currentQ').innerHTML = generatedQuestions[currentQIdx].text;
-                            
+
                             // Re-speak the old question text since the LLM didn't have it
                             const spoke = await speakQuestion(generatedQuestions[currentQIdx].text);
                             if (!spoke) await new Promise(r => setTimeout(r, 1000));
@@ -3357,13 +3377,13 @@ Output ONLY valid JSON, no markdown:
                             startRecording();
                             return;
                         }
-                        
+
                         if (result.action === 'end') {
                             endInterview();
                             return;
                         }
-                        
-                        generatedQuestions[currentQIdx+1].dynamicText = result.response;
+
+                        generatedQuestions[currentQIdx + 1].dynamicText = result.response;
                     } else {
                         document.getElementById('callStatusText').textContent = 'Generating wrap up...';
                         // prevContext is just the question text — full history is passed separately as role messages
@@ -3373,17 +3393,17 @@ Output ONLY valid JSON, no markdown:
                             "Thank the user for their time and say the interview is complete.",
                             conversationHistory // pass full session memory
                         );
-                        
+
                         // Append this wrap-up turn to session memory too
                         conversationHistory.push({ role: "user", content: `[Q: ${generatedQuestions[currentQIdx].text}] ${transcript}` });
                         conversationHistory.push({ role: "assistant", content: result.response });
-                        
+
                         if (result.action === 'previous') {
                             if (currentQIdx > 0) {
                                 currentQIdx--;
                             }
                             document.getElementById('currentQ').innerHTML = generatedQuestions[currentQIdx].text;
-                            
+
                             const spoke = await speakQuestion(generatedQuestions[currentQIdx].text);
                             if (!spoke) await new Promise(r => setTimeout(r, 1000));
 
@@ -3414,7 +3434,7 @@ Output ONLY valid JSON, no markdown:
                             startRecording();
                             return;
                         }
-                        
+
                         if (result.action === 'end') {
                             endInterview();
                             return;
@@ -3424,10 +3444,10 @@ Output ONLY valid JSON, no markdown:
                         return;
                     }
                 }
-                
+
                 // Hardware release delay
                 await new Promise(r => setTimeout(r, 500));
-                
+
                 // Advance to next question
                 await loadQuestionNoSpeak(currentQIdx + 1);
             } catch (err) {
@@ -3503,23 +3523,23 @@ Output ONLY valid JSON, no markdown:
 
         function storeTranscript(qIdx, question, answer) {
             const finalAnswer = answer && answer.trim() ? answer.trim() : '[No speech detected]';
-            
+
             if (!storedTranscripts[qIdx]) {
                 storedTranscripts[qIdx] = [];
             }
             storedTranscripts[qIdx].push({ question, answer: finalAnswer });
-            
+
             const retryCount = storedTranscripts[qIdx].length;
             const uid = `transcript-item-${qIdx}-${retryCount}`;
-            
+
             const store = document.getElementById('transcriptStore');
             const div = document.createElement('div');
             div.id = uid;
             div.style.marginBottom = '12px';
             store.appendChild(div);
-            
+
             const retryLabel = retryCount > 1 ? ` (Retry ${retryCount - 1})` : '';
-            
+
             div.innerHTML = `
     <div class="q-item" style="border-left:3px solid var(--amber);border-radius:0 8px 8px 0;">
       <div class="q-num" style="background:var(--amber-dim);color:var(--amber);">Q${qIdx + 1}${retryLabel}</div>
@@ -3531,7 +3551,7 @@ Output ONLY valid JSON, no markdown:
     </div>
   `;
             store.scrollTop = store.scrollHeight;
-            
+
             let totalPairs = 0;
             for (let key in storedTranscripts) {
                 totalPairs += storedTranscripts[key].length;
@@ -3543,12 +3563,12 @@ Output ONLY valid JSON, no markdown:
         function storeOffTopicTranscript(question, answer) {
             const finalAnswer = answer && answer.trim() ? answer.trim() : '[No speech detected]';
             offTopicTranscripts.push({ question, answer: finalAnswer });
-            
+
             const store = document.getElementById('offTopicStore');
             const div = document.createElement('div');
             div.style.marginBottom = '12px';
             store.appendChild(div);
-            
+
             div.innerHTML = `
     <div class="q-item" style="border-left:3px solid var(--rose);border-radius:0 8px 8px 0;">
       <div class="q-num" style="background:var(--rose-dim);color:var(--rose);">Candidate</div>
@@ -3560,12 +3580,12 @@ Output ONLY valid JSON, no markdown:
     </div>
   `;
             store.scrollTop = store.scrollHeight;
-            
+
             const emptyState = store.querySelector('.text-muted');
             if (emptyState) {
                 emptyState.style.display = 'none';
             }
-            
+
             document.getElementById('offTopicCount').textContent = offTopicTranscripts.length + ' pairs';
         }
 
@@ -3599,7 +3619,7 @@ Output ONLY valid JSON, no markdown:
             if (conversationalWS && conversationalWS.readyState === WebSocket.OPEN) {
                 conversationalWS.close(1000);
             }
-            
+
             // Hard teardown of all audio contexts so microphone releases
             dgAudioCtx = null;
             if (globalMicStream) {
@@ -3607,7 +3627,7 @@ Output ONLY valid JSON, no markdown:
                 globalMicStream = null;
             }
             if (window.sharedAudioCtx && window.sharedAudioCtx.state !== 'closed') {
-                window.sharedAudioCtx.close().catch(()=>{});
+                window.sharedAudioCtx.close().catch(() => { });
                 window.sharedAudioCtx = null;
             }
             callActive = false;
@@ -3620,7 +3640,7 @@ Output ONLY valid JSON, no markdown:
             document.getElementById('callStatusText').textContent = 'Interview complete — run scoring →';
             setWaveform(false);
             showToast('Interview ended. Head to Screen 3 to score the answers.', 'teal');
-            
+
             // Auto-navigate to scoring tab after a brief delay
             setTimeout(() => {
                 showSection('scoring');
@@ -3642,7 +3662,7 @@ Output ONLY valid JSON, no markdown:
             const btnTxt = document.getElementById('scoreBtnText');
             btn.disabled = true;
             btnTxt.innerHTML = '<span class="spin"></span> Evaluating...';
-            
+
             const model = document.getElementById('scoringModel').value;
             brainRecord('scoring', 'start', `Model: ${model}, Pairs: ${validPairs.length}`, 'info');
 
@@ -3799,7 +3819,7 @@ Output ONLY valid JSON, no markdown:
         function buildScaleTable() {
             const tbody = document.getElementById('scaleTable');
             const vols = [100, 250, 500, 1000, 2500, 5000, 10000];
-            
+
             const totalSec = sttSecCount + ttsCharCount / 14;
             const callMin = totalSec > 0 ? Math.max(1, Math.ceil(totalSec / 60)) : 0;
             const retellPer = callMin > 0 ? callMin * RETELL_PER_MIN : 0.19;
@@ -3864,9 +3884,9 @@ Output ONLY valid JSON, no markdown:
         console.log('Fetching Deepgram key...');
         fetch('/deepgram-key')
             .then(r => r.json())
-            .then(d => { 
-                deepgramKey = d.key; 
-                console.log('Deepgram key loaded ⚡'); 
+            .then(d => {
+                deepgramKey = d.key;
+                console.log('Deepgram key loaded ⚡');
                 document.getElementById('dg-debug-key').textContent = 'LOADED';
                 document.getElementById('dg-debug-key').style.color = 'var(--teal)';
             })
@@ -3887,15 +3907,15 @@ Output ONLY valid JSON, no markdown:
             : WS_BASE_URL;
 
         const SEVERITY_STYLES = {
-            ok:       { color: 'var(--teal)',  icon: '✅' },
-            info:     { color: 'var(--muted)', icon: '📌' },
-            warn:     { color: 'var(--amber)', icon: '⚠️' },
-            error:    { color: 'var(--rose)',  icon: '❌' },
-            critical: { color: 'var(--rose)',  icon: '🚨' },
+            ok: { color: 'var(--teal)', icon: '✅' },
+            info: { color: 'var(--muted)', icon: '📌' },
+            warn: { color: 'var(--amber)', icon: '⚠️' },
+            error: { color: 'var(--rose)', icon: '❌' },
+            critical: { color: 'var(--rose)', icon: '🚨' },
             degraded: { color: 'var(--amber)', icon: '⚠️' },
-            active:   { color: 'var(--blue)',  icon: '🔵' },
-            unknown:  { color: 'var(--muted)', icon: '❓' },
-            healthy:  { color: 'var(--teal)',  icon: '✅' },
+            active: { color: 'var(--blue)', icon: '🔵' },
+            unknown: { color: 'var(--muted)', icon: '❓' },
+            healthy: { color: 'var(--teal)', icon: '✅' },
         };
 
         function brainConnect() {
@@ -3939,7 +3959,7 @@ Output ONLY valid JSON, no markdown:
                     } else if (msg.type === 'ack') {
                         showToast('🧠 ' + msg.msg, 'teal');
                     }
-                } catch(e) { console.error('Brain WS parse error:', e); }
+                } catch (e) { console.error('Brain WS parse error:', e); }
             };
         }
 
@@ -3976,7 +3996,7 @@ Output ONLY valid JSON, no markdown:
                 if (!el) return;
                 const color = ok ? 'var(--teal)' : 'var(--rose)';
                 const bg = ok ? 'var(--teal-dim)' : 'var(--rose-dim)';
-                el.innerHTML = `<span class="pill" style="padding:4px 8px; font-size:10px; background:${bg}; color:${color}; border:1px solid ${color}33;">${label}: ${ok?'UP':'DOWN'}</span>`;
+                el.innerHTML = `<span class="pill" style="padding:4px 8px; font-size:10px; background:${bg}; color:${color}; border:1px solid ${color}33;">${label}: ${ok ? 'UP' : 'DOWN'}</span>`;
             };
             updateConn('conn-net', conn.internet, '🌐 Net');
             updateConn('conn-openai', conn.openai, '🤖 OpenAI');
@@ -3992,10 +4012,10 @@ Output ONLY valid JSON, no markdown:
             const grid = document.getElementById('brain-components');
             grid.innerHTML = Object.entries(comp).map(([k, v]) => {
                 const style = SEVERITY_STYLES[v.status] || SEVERITY_STYLES.unknown;
-                const ago = v.last_update ? Math.round(Date.now()/1000 - v.last_update) + 's ago' : 'never';
+                const ago = v.last_update ? Math.round(Date.now() / 1000 - v.last_update) + 's ago' : 'never';
                 return `<div class="cost-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
                     <div style="display:flex;justify-content:space-between;width:100%;">
-                        <span style="font-size:11px;font-weight:700;color:var(--text);">${icons[k]||'📦'} ${k.replace(/_/g,' ')}</span>
+                        <span style="font-size:11px;font-weight:700;color:var(--text);">${icons[k] || '📦'} ${k.replace(/_/g, ' ')}</span>
                         <span style="font-size:10px;color:${style.color};font-weight:700;">${style.icon} ${v.status}</span>
                     </div>
                     <span style="font-size:10px;color:var(--muted);word-break:break-all;">${v.detail || '—'} <span style="opacity:0.5">${ago}</span></span>
@@ -4021,7 +4041,7 @@ Output ONLY valid JSON, no markdown:
             line.style.cssText = `color:${style.color};padding:1px 0;border-bottom:1px solid var(--border);`;
             const ts = e.ts_str || new Date().toLocaleTimeString();
             const detail = (e.detail || '').substring(0, 80);
-            line.textContent = `${style.icon} ${ts} [${e.component||'sys'}] ${e.type||''}: ${detail}`;
+            line.textContent = `${style.icon} ${ts} [${e.component || 'sys'}] ${e.type || ''}: ${detail}`;
             if (prepend) {
                 log.insertBefore(line, log.firstChild);
             } else {
@@ -4053,7 +4073,7 @@ Output ONLY valid JSON, no markdown:
                     <div style="font-size:9px;color:var(--rose);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Root Cause</div>
                     <div style="font-size:11px;color:var(--text);">${analysis.root_cause}</div>
                 </div>` : ''}
-                ${(analysis.auto_recovery||[]).length ? `
+                ${(analysis.auto_recovery || []).length ? `
                 <div style="margin-bottom:10px;">
                     <div style="font-size:9px;color:var(--teal);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">🤖 Auto-Recovery</div>
                     ${analysis.auto_recovery.map(a => `<div style="font-size:11px;color:var(--muted);padding:2px 0;">▶ ${a}</div>`).join('')}
